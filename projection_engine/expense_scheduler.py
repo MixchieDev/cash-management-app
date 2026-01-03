@@ -55,16 +55,23 @@ class ExpenseScheduler:
         # Get frequency in days
         frequency_days = EXPENSE_FREQUENCIES.get(contract.frequency)
 
+        # Determine the effective start date (latest of projection start_date and contract start_date)
+        effective_start = start_date
+        if contract.start_date is not None and contract.start_date > start_date:
+            effective_start = contract.start_date
+
         if frequency_days is None:  # One-time payment
-            if start_date <= contract.due_date <= end_date:
-                payment_dates.append(contract.due_date)
+            # Check if payment falls within effective range and before contract end_date
+            if effective_start <= contract.due_date <= end_date:
+                if contract.end_date is None or contract.due_date <= contract.end_date:
+                    payment_dates.append(contract.due_date)
             return payment_dates
 
         # Recurring payment
         current_date = contract.due_date
 
-        # Start from the first payment on or after start_date
-        while current_date < start_date:
+        # Start from the first payment on or after effective_start
+        while current_date < effective_start:
             if contract.frequency == 'Monthly':
                 current_date += relativedelta(months=1)
             elif contract.frequency == 'Quarterly':
@@ -74,8 +81,13 @@ class ExpenseScheduler:
             else:
                 current_date += timedelta(days=frequency_days)
 
+        # Determine the effective end date (use contract end_date if set, otherwise projection end_date)
+        effective_end = end_date
+        if contract.end_date is not None and contract.end_date < end_date:
+            effective_end = contract.end_date
+
         # Generate payment dates
-        while current_date <= end_date:
+        while current_date <= effective_end:
             payment_dates.append(current_date)
 
             # Move to next payment date

@@ -322,5 +322,26 @@ Added the ability to click on any data point in the cash flow projection chart t
 
 ---
 
+**Vendor Contract End Date Feature** (Commit: `cd3ca64`)
+
+Added optional `end_date` field to vendor contracts. If blank, expenses continue indefinitely. If set, expenses stop after that date.
+
+**Files Added/Modified:**
+- `database/models.py` - Added `end_date` column to VendorContract
+- `projection_engine/expense_scheduler.py` - Updated to respect both `start_date` and `end_date`
+- `data_processing/google_sheets_import.py` - Handles "End Date" column from Google Sheets
+- `database/migrations/002_add_vendor_end_date.sql` - Migration to add the column
+- `tests/test_vendor_end_date.py` - 9 comprehensive tests
+
+**How it works:**
+- If `end_date` is NULL/blank → expense continues indefinitely (current behavior)
+- If `end_date` is set → expense payments stop after that date
+- Works with all frequencies (monthly, quarterly, annual, one-time)
+- Properly handles both `start_date` and `end_date` together
+
+**Google Sheets:** Add an "End Date" column to your Vendors sheet.
+
+---
+
 *Last Updated: January 3, 2026*
 *Prepared by: Master Orchestrator AI*

@@ -48,11 +48,11 @@ def kpi_card(label: str, value: str, change: str = None, change_positive: bool =
 
     change_html = ''
     if change:
-        change_html = f'<div style="font-size: 13px; color: {change_color}; margin-top: 8px;">{arrow} {change}</div>'
+        change_html = f'<div style="font-size: 12px; color: {change_color}; margin-top: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{arrow} {change}</div>'
 
-    html = f'''<div style="background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 8px; padding: 16px 20px; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);">
-<div style="font-size: 11px; text-transform: uppercase; color: #6B7280; letter-spacing: 0.5px; margin-bottom: 12px;">{label}</div>
-<div style="font-size: 24px; font-weight: 700; color: #111827; font-family: monospace; line-height: 1.2;">{value}</div>
+    html = f'''<div style="background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 8px; padding: 14px 16px; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05); min-width: 0;">
+<div style="font-size: 10px; text-transform: uppercase; color: #6B7280; letter-spacing: 0.5px; margin-bottom: 8px; white-space: nowrap;">{label}</div>
+<div style="font-size: clamp(16px, 2vw, 22px); font-weight: 700; color: #111827; font-family: monospace; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{value}</div>
 {change_html}</div>'''
 
     st.markdown(html, unsafe_allow_html=True)

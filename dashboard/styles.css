@@ -571,3 +571,26 @@ hr {
     background: var(--color-surface) !important;
     border-radius: var(--radius-sm) !important;
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   RESPONSIVE COLUMNS - KPI Cards
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* Make columns flex and allow shrinking */
+[data-testid="column"] {
+    min-width: 0 !important;
+    overflow: hidden;
+}
+
+/* Responsive adjustments for sidebar open state */
+@media (max-width: 1400px) {
+    [data-testid="stMetricValue"] {
+        font-size: 22px !important;
+    }
+}
+
+@media (max-width: 1200px) {
+    [data-testid="stMetricValue"] {
+        font-size: 18px !important;
+    }
+}

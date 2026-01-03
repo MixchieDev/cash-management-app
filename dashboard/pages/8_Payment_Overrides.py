@@ -102,7 +102,8 @@ with st.expander("➕ Add New Override", expanded=False):
                 customer = get_customer_by_id(selected_customer_id)
                 if customer:
                     # Calculate upcoming payment dates
-                    revenue_calc = RevenueCalculator(scenario_type='realistic')
+                    # Use optimistic (no delay) to show base contractual payment dates
+                    revenue_calc = RevenueCalculator(scenario_type='optimistic')
 
                     # Create a mock contract object for calculation
                     class MockContract:

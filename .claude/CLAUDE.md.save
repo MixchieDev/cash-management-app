@@ -1,0 +1,1646 @@
+# JESUS Company Strategic Cash Management System
+
+## Project Overview
+
+**Purpose**: Strategic financial planning tool for CFO to scale ₱50M → ₱250M revenue  
+**Entities**: YAHSHUA Outsourcing Worldwide Inc, The ABBA Initiative OPC  
+**Stack**: Python 3.11+, Streamlit, Google Sheets API, SQLite/PostgreSQL  
+**Deployment**: Streamlit Cloud
+
+This is a contract-based multi-year cash projection system with scenario modeling for strategic growth decisions.
+
+---
+
+## Business Rules
+
+### Revenue Model
+- **Invoice Timing**: 15 days BEFORE the 1st of the month
+  - Example: Invoice on Feb 15 for March billing (due Apr 1)
+- **Payment Terms**: Net 30 (customers should pay within 30 days of invoice)
+- **Default Reliability**: 80% (expect payment 10 days LATER than Net 30)
+  - Optimistic scenario: Payment on time (Net 30)
+  - Realistic scenario: Payment 10 days late (Net 30 + 10 days)
+- **Recurring Revenue**: Use "Monthly Fee" column as the actual recurring amount
+- **Payment Plans**: Monthly, Quarterly, Annual, Bi-annually, More than 1 year
+- **Renewal**: Subscriptions renew automatically unless client disengages
+
+### Expense Model
+
+**Payroll (Priority 1 - Non-negotiable)**:
+- Fixed: ₱1M on 15th, ₱1M on 30th of every month
+- ALWAYS pay first, never delay
+- Scenario planning: Average ₱40K-60K per employee
+
+**Loans (Priority 2 - Contractual)**:
+- Amortization + Interest payments
+- Must honor payment schedule
+- Track principal vs interest separately for P&L
+
+**Software/Tech (Priority 3 - Medium flexibility)**:
+- Typical due date: 21st of month
+- Can delay 5-10 days if cash tight
+- Example: AWS, Google Workspace, SaaS tools
+
+**Operations (Priority 4 - High flexibility)**:
+- Categories: Rent, Utilities, Supplies, Meals, Fuel
+- Can negotiate timing with most vendors
+- Highest flexibility in cash crunch scenarios
+
+### Entity Assignment
+
+**YAHSHUA Outsourcing** = Customers acquired by:
+- RCBC Partner
+- Globe Partner
+- YOWI
+
+**ABBA Initiative** = Customers acquired by:
+- TAI
+- PEI
+
+*(Configurable in `config/entity_mapping.py`)*
+
+---
+
+## Technical Standards
+
+### Code Quality
+- **Python Version**: 3.11+ required
+- **Type Hints**: Required for all function signatures
+```python
+  def calculate_projection(start: date, end: date) -> List[ProjectionDataPoint]:
+      pass
+```
+- **Docstrings**: Google style for all public functions
+```python
+  def calculate_cash_position(inflows: Decimal, outflows: Decimal) -> Decimal:
+      """Calculate ending cash position.
+      
+      Args:
+          inflows: Total revenue received in period
+          outflows: Total expenses paid in period
+      
+      Returns:
+          Ending cash balance (can be negative)
+      """
+      return starting_cash + inflows - outflows
+```
+
+### Currency Formatting
+- **ALWAYS**: Philippine Peso (₱) symbol
+- **ALWAYS**: Comma thousands separator
+- **ALWAYS**: 2 decimal places
+
+**Correct**: ₱2,500,000.00  
+**Wrong**: 2500000, ₱2500000, ₱2,500,000
+```python
+from utils.currency_formatter import format_currency
+
+amount = Decimal('2500000')
+display = format_currency(amount)  # Returns: ₱2,500,000.00
+```
+
+### Performance Requirements
+- **Scenario Recalculation**: <2 seconds
+- **Dashboard Load**: <3 seconds
+- **Data Import**: <10 seconds for 500 contracts
+- **Projection Generation**: <5 seconds for 3-year daily projection (1095 data points)
+
+### Testing Requirements
+- **Coverage**: 100% on all financial calculation modules
+- **Test Data**: Use realistic data (1000+ data points for stress testing)
+- **Edge Cases**: Must test:
+  - Contract gaps (no revenue for period)
+  - Contract renewals (mid-projection expiration)
+  - Negative cash scenarios
+  - Multi-entity isolation (YAHSHUA data doesn't leak into ABBA)
+  - Scenario accuracy (hiring/expense/revenue changes apply correctly)
+  - Currency rounding (no precision errors)
+```python
+# Example test structure
+def test_payroll_always_2m_per_month():
+    """Payroll must be exactly ₱2M per month (₱1M on 15th + ₱1M on 30th)."""
+    projection = calculate_projection('2026-01-01', '2026-12-31', 'YAHSHUA')
+    
+    for month_data in group_by_month(projection):
+        payroll_total = sum(p.outflows for p in month_data if p.category == 'Payroll')
+        assert payroll_total == Decimal('2000000.00'), \
+            f"Payroll must be ₱2M per month, got ₱{payroll_total:,.2f}"
+```
+
+---
+
+## Development Workflow
+
+### Git Worktrees (Parallel Development)
+Use Git worktrees to enable 3 simultaneous development sessions without switching branches.
+```bash
+# Main worktree (backend development)
+cd jesus-company-cash-management
+
+# Create worktree for frontend development
+git worktree add ../cash-mgmt-frontend frontend-dashboard
+
+# Create worktree for testing
+git worktree add ../cash-mgmt-testing feature-tests
+
+# Now you can work in 3 terminal sessions simultaneously:
+# Session 1: Backend in main directory
+# Session 2: Frontend in ../cash-mgmt-frontend
+# Session 3: Testing in ../cash-mgmt-testing
+```
+
+### Commit Standards
+- **Frequency**: Commit after each logical unit of work (every 30-60 minutes)
+- **Messages**: Descriptive and specific
+  - Good: "Implement realistic payment delay (10-day lag) in projection engine"
+  - Bad: "Update projections"
+
+### Test-Driven Development
+1. Write test first
+2. Run test (should fail)
+3. Write minimal code to pass test
+4. Refactor
+5. Repeat
+
+### Auto-Testing Hooks
+```bash
+# Set up pre-commit hook to run tests
+echo "pytest tests/" > .git/hooks/pre-commit
+chmod +x .git/hooks/pre-commit
+```
+
+---
+
+## Deployment
+
+### Environment Variables
+```bash
+# Never commit these to git
+GOOGLE_SHEETS_CREDS_PATH=/path/to/credentials.json
+SPREADSHEET_ID=1abc123xyz...
+SECRET_KEY=random_secret_for_sessions
+DATABASE_URL=sqlite:///jesus_cash_management.db  # or PostgreSQL URL
+```
+
+### Streamlit Cloud Deployment
+1. Push to GitHub repository
+2. Connect repository in Streamlit Cloud
+3. Add environment variables in Streamlit Cloud dashboard
+4. Deploy
+
+### Security Checklist
+- ✅ Google Sheets credentials in environment variables (not in code)
+- ✅ User passwords hashed with bcrypt
+- ✅ Session secret key in environment variables
+- ✅ No sensitive data in Git history
+- ✅ `.env` file in `.gitignore`
+
+---
+
+## Never Do (Critical Don'ts)
+
+1. **DON'T start Streamlit server automatically**
+   - CFO runs manually: `streamlit run dashboard/app.py`
+   - Don't add `if __name__ == '__main__': streamlit.run()`
+
+2. **DON'T guess at entity assignments**
+   - Always use config/entity_mapping.py
+   - Raise error if acquisition source is unmapped
+
+3. **DON'T deploy without tests passing**
+   - Run `pytest tests/` before every deployment
+   - CI/CD should block deployment if tests fail
+
+4. **DON'T modify projection formulas without CFO approval**
+   - Financial calculations are sacred
+   - Document any formula changes in CHANGELOG.md
+
+5. **DON'T expose raw numbers without ₱ formatting**
+   - Every currency display must use format_currency()
+   - No naked Decimals in dashboard
+
+6. **DON'T write back to Google Sheets**
+   - Read-only access to preserve source of truth
+   - All edits happen in dashboard → save to local DB
+
+---
+
+## Biblical Principle
+
+> **"Suppose one of you wants to build a tower. Won't you first sit down and estimate the cost to see if you have enough money to complete it?"**  
+> — Luke 14:28
+
+This tool helps CFO Mich "count the cost" of growth decisions:
+- Can we afford to hire 10 employees?
+- What revenue do we need to partner with CyTech?
+- When can we invest ₱10M in a new office?
+
+Financial planning is stewardship. This system enables wise stewardship of ₱50M → ₱250M growth.
+
+---
+
+## Quick Reference
+
+### Running the Application
+```bash
+# Install dependencies
+pip install -r requirements.txt --break-system-packages
+
+# Run tests
+pytest tests/ -v
+
+# Run dashboard
+streamlit run dashboard/app.py
+
+# Sync data from Google Sheets
+python -c "from data_processing.google_sheets_import import sync_all_data; sync_all_data()"
+```
+
+### Common Tasks
+
+**Add a new scenario**:
+1. Navigate to Scenarios page
+2. Fill out scenario form (Hiring/Expenses/Revenue tabs)
+3. Click "Run Scenario" to see impact
+4. Click "Save Scenario" to persist
+
+**Compare scenarios**:
+1. Navigate to Scenario Comparison page
+2. Select 2-3 scenarios to compare
+3. View side-by-side charts and metrics
+4. Export to PDF/Excel if needed
+
+**Update contracts**:
+1. Edit Google Sheets (source of truth)
+2. In dashboard, click "Sync from Google Sheets"
+3. Verify import was successful
+4. Projections auto-update
+
+---
+
+## Support
+
+For technical issues, check:
+1. Test suite: `pytest tests/ -v`
+2. Logs: `streamlit run dashboard/app.py --logger.level=debug`
+3. Database: `sqlite3 jesus_cash_management.db`
+
+For business logic questions, consult CFO Mich.
+
+---
+
+*Last Updated: January 2, 2026*  
+*Prepared by: Master Orchestrator AI*
+```
+
+---
+
+## 3. BACKEND CREW PROMPT
+```
+=== PASTE THIS INTO CLAUDE CODE ON DAY 3 ===
+
+You are an AUTONOMOUS BACKEND DEVELOPMENT CREW building a strategic cash management system for a CFO scaling ₱50M → ₱250M revenue.
+
+You will work for 5 DAYS (Days 3-7) WITHOUT human interaction. All requirements are provided below. Your goal is to deliver a fully functional, tested backend ready for frontend integration.
+
+═══════════════════════════════════════════════════════════════════
+MISSION BRIEFING
+═══════════════════════════════════════════════════════════════════
+
+**What You're Building:**
+Contract-based cash projection engine with multi-year forecasting (12-36 months) and scenario modeling.
+
+**Who It's For:**
+CFO Mich managing 2 entities: YAHSHUA Outsourcing, ABBA Initiative
+
+**Success Criteria:**
+✓ All backend modules built and tested
+✓ 100% test coverage on financial calculations
+✓ Google Sheets import working
+✓ Projection engine generating accurate forecasts (within ±5%)
+✓ Scenario engine functioning correctly
+✓ All tests passing
+✓ Ready for frontend integration on Day 8
+
+═══════════════════════════════════════════════════════════════════
+ARCHITECTURE
+═══════════════════════════════════════════════════════════════════
+
+[PASTE COMPLETE DATABASE SCHEMA FROM SECTION 1.1]
+
+[PASTE COMPLETE MODULE ARCHITECTURE FROM SECTION 1.2]
+
+[PASTE COMPLETE PROJECTION ALGORITHM FROM SECTION 1.3]
+
+[PASTE COMPLETE SCENARIO ENGINE DESIGN FROM SECTION 1.4]
+
+═══════════════════════════════════════════════════════════════════
+BUSINESS RULES (CRITICAL - NEVER VIOLATE)
+═══════════════════════════════════════════════════════════════════
+
+**Revenue Projections:**
+1. Invoice 15 days BEFORE 1st of month (e.g., invoice Feb 15 for March billing)
+2. Payment terms: Net 30 (customers should pay within 30 days)
+3. Default reliability: 80% = payment 10 days LATE
+   - Optimistic scenario: Invoice date + 30 days
+   - Realistic scenario: Invoice date + 40 days (30 + 10 delay)
+4. Use "Monthly Fee" column as recurring revenue amount
+5. Payment plans: Monthly, Quarterly, Annual, Bi-annually, More than 1 year
+
+**Expense Projections:**
+1. Payroll: ALWAYS ₱1M on 15th + ₱1M on 30th of every month (non-negotiable)
+2. Vendor payments: Schedule based on DUE DATE column and FREQUENCY
+3. Priority order: Payroll (1) > Loans (2) > Software/Tech (3) > Operations (4)
+4. Flexibility: Payroll (none) < Loans (low) < Software (medium) < Operations (high)
+
+**Entity Assignment:**
+- YAHSHUA: Customers acquired by RCBC Partner, Globe Partner, YOWI
+- ABBA: Customers acquired by TAI, PEI
+- (Configurable in config/entity_mapping.py)
+
+**Bank Balance Starting Point:**
+- ALWAYS use most recent entry from bank_balances table as starting cash
+- NEVER use projected cash as starting point
+- Label clearly: "Actual as of [date]" vs "Projected on [date]"
+
+**Multi-Entity Rules:**
+- YAHSHUA cash CANNOT pay ABBA expenses (and vice versa)
+- Consolidated view shows combined totals but entities remain separate
+- Each projection tagged with entity
+- Scenarios must specify which entity they apply to
+
+═══════════════════════════════════════════════════════════════════
+DEVELOPMENT STRATEGY (USE GIT WORKTREES)
+═══════════════════════════════════════════════════════════════════
+
+You will use Git worktrees to enable parallel development across 3 sessions:
+
+**Session 1: Data Layer (Days 3-4)**
+```bash
+cd jesus-company-cash-management
+git worktree add ../backend-data-layer data-layer
+
+# In this worktree, build:
+- database/db_manager.py
+- database/models.py
+- data_processing/google_sheets_import.py
+- data_processing/data_validator.py
+- data_processing/entity_assigner.py
+- config/entity_mapping.py
+- config/constants.py
+
+# Tests:
+- tests/test_data_import.py
+- tests/test_entity_assignment.py
+```
+
+**Session 2: Projection Engine (Days 3-5)**
+```bash
+git worktree add ../backend-projection-engine projection-engine
+
+# In this worktree, build:
+- projection_engine/revenue_calculator.py
+- projection_engine/expense_scheduler.py
+- projection_engine/reliability_scorer.py
+- projection_engine/cash_projector.py
+- projection_engine/multi_timeframe.py
+
+# Tests:
+- tests/test_projections.py
+- tests/test_multi_timeframe.py
+- tests/test_currency_formatting.py
+```
+
+**Session 3: Scenario Engine (Days 4-7)**
+```bash
+git worktree add ../backend-scenario-engine scenario-engine
+
+# In this worktree, build:
+- scenario_engine/scenario_builder.py
+- scenario_engine/scenario_calculator.py
+- scenario_engine/scenario_comparer.py
+- scenario_engine/break_even_analyzer.py
+- scenario_engine/scenario_storage.py
+- strategic_planner/growth_path.py
+- strategic_planner/hiring_planner.py
+
+# Tests:
+- tests/test_scenarios.py
+- tests/test_break_even.py
+```
+
+**Integration (Day 7):**
+Merge all worktrees, run full test suite, prepare for frontend handoff.
+
+═══════════════════════════════════════════════════════════════════
+DETAILED MODULE SPECIFICATIONS
+═══════════════════════════════════════════════════════════════════
+
+### DATABASE MANAGER (database/db_manager.py)
+```python
+from typing import Optional, List
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker, Session
+from config.settings import DATABASE_URL
+
+class DatabaseManager:
+    """Manage database connections and sessions."""
+    
+    def __init__(self, db_url: str = DATABASE_URL):
+        self.engine = create_engine(db_url)
+        self.SessionLocal = sessionmaker(bind=self.engine)
+    
+    def get_session(self) -> Session:
+        """Get a new database session."""
+        return self.SessionLocal()
+    
+    def init_schema(self):
+        """Initialize database schema from SQL file."""
+        with open('database/migrations/init_schema.sql', 'r') as f:
+            schema_sql = f.read()
+        with self.engine.connect() as conn:
+            conn.execute(schema_sql)
+
+# Usage:
+db = DatabaseManager()
+session = db.get_session()
+```
+
+### GOOGLE SHEETS IMPORT (data_processing/google_sheets_import.py)
+```python
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
+from typing import List, Dict
+from config.settings import GOOGLE_SHEETS_CREDS_PATH, SPREADSHEET_ID
+
+def import_customer_contracts() -> List[Dict]:
+    """
+    Import customer contracts from Google Sheets.
+    
+    Returns:
+        List of customer contract dicts with entity assigned.
+    
+    Raises:
+        ValueError: If acquisition source unmapped.
+    """
+    # Connect to sheets
+    client = connect_to_google_sheets()
+    sheet = client.open_by_key(SPREADSHEET_ID)
+    customers_sheet = sheet.worksheet('Customer Contracts')
+    
+    # Get data
+    customers_data = customers_sheet.get_all_records()
+    
+    # Validate required fields
+    for customer in customers_data:
+        validate_customer_record(customer)
+    
+    # Assign entities
+    for customer in customers_data:
+        customer['entity'] = assign_entity(customer['Who acquired the client'])
+    
+    # Save to database
+    save_customers_to_db(customers_data)
+    
+    return customers_data
+
+def validate_customer_record(record: Dict):
+    """Validate customer record has all required fields."""
+    required_fields = [
+        'Company Name', 'Monthly Fee', 'Payment Plan', 
+        'Contract Start', 'Status', 'Who acquired the client'
+    ]
+    for field in required_fields:
+        if field not in record or not record[field]:
+            raise ValueError(f"Missing required field: {field}")
+```
+
+### PROJECTION ENGINE (projection_engine/cash_projector.py)
+```python
+from decimal import Decimal
+from datetime import date, timedelta
+from typing import List, Optional
+from dataclasses import dataclass
+
+@dataclass
+class ProjectionDataPoint:
+    """Single data point in cash projection."""
+    date: date
+    starting_cash: Decimal
+    inflows: Decimal
+    outflows: Decimal
+    ending_cash: Decimal
+    entity: str
+    timeframe: str
+    scenario_type: str
+
+def calculate_cash_projection(
+    start_date: date,
+    end_date: date,
+    entity: str,
+    timeframe: str = 'monthly',
+    scenario_type: str = 'realistic',
+    scenario_id: Optional[int] = None
+) -> List[ProjectionDataPoint]:
+    """
+    Calculate cash projection for specified period.
+    
+    Args:
+        start_date: Projection start date
+        end_date: Projection end date
+        entity: 'YAHSHUA', 'ABBA', or 'Consolidated'
+        timeframe: 'daily', 'weekly', 'monthly', 'quarterly'
+        scenario_type: 'optimistic' or 'realistic'
+        scenario_id: Custom scenario to apply (optional)
+    
+    Returns:
+        List of projection data points
+    
+    Algorithm:
+        1. Get starting cash from bank_balances table (most recent)
+        2. For each time period:
+           a. Calculate revenue inflows (contracts + payment terms + reliability)
+           b. Calculate expense outflows (vendors + payroll)
+           c. Calculate ending cash: start + inflows - outflows
+           d. Update starting cash for next period
+    """
+    # Implementation follows Section 1.3 algorithm
+    pass
+```
+
+### SCENARIO ENGINE (scenario_engine/scenario_calculator.py)
+```python
+from typing import List, Dict
+from projection_engine.cash_projector import ProjectionDataPoint
+
+def apply_scenario_to_projection(
+    baseline_projection: List[ProjectionDataPoint],
+    scenario_config: Dict
+) -> List[ProjectionDataPoint]:
+    """
+    Apply scenario changes to baseline projection.
+    
+    Args:
+        baseline_projection: Baseline cash projection
+        scenario_config: Scenario configuration with changes
+    
+    Returns:
+        New projection with scenario applied
+    
+    Scenario Types:
+        - hiring: Add employees × salary to payroll starting from start_date
+        - expense: Add recurring expense starting from start_date
+        - revenue: Add new clients × revenue starting from start_date
+        - customer_loss: Remove revenue starting from loss_date
+        - investment: One-time cash outflow on investment_date
+    """
+    # Implementation follows Section 1.4 logic
+    pass
+
+def calculate_break_even(
+    baseline_projection: List[ProjectionDataPoint],
+    scenario_config: Dict
+) -> Dict:
+    """
+    Calculate when scenario becomes affordable.
+    
+    Returns:
+        {
+            'affordable': bool,
+            'start_date': date (if affordable),
+            'additional_revenue_needed': Decimal (if not affordable),
+            'message': str
+        }
+    """
+    # Implementation follows Section 1.4 break-even logic
+    pass
+```
+
+═══════════════════════════════════════════════════════════════════
+TESTING REQUIREMENTS (100% COVERAGE ON CALCULATIONS)
+═══════════════════════════════════════════════════════════════════
+
+### Test Structure
+```python
+# tests/test_projections.py
+
+import pytest
+from decimal import Decimal
+from datetime import date
+from projection_engine.cash_projector import calculate_cash_projection
+
+def test_payroll_always_2m_per_month():
+    """Payroll must be exactly ₱2M per month (₱1M on 15th + ₱1M on 30th)."""
+    projection = calculate_cash_projection(
+        start_date=date(2026, 1, 1),
+        end_date=date(2026, 12, 31),
+        entity='YAHSHUA',
+        timeframe='monthly'
+    )
+    
+    # Check each month has ₱2M payroll
+    for month_projection in projection:
+        payroll_outflows = [
+            p.outflows for p in month_projection 
+            if 'payroll' in p.description.lower()
+        ]
+        total_payroll = sum(payroll_outflows)
+        
+        assert total_payroll == Decimal('2000000.00'), \
+            f"Payroll must be ₱2,000,000.00 per month, got ₱{total_payroll:,.2f}"
+
+def test_realistic_payment_delay():
+    """Realistic scenario should apply 10-day payment delay."""
+    optimistic = calculate_cash_projection(
+        start_date=date(2026, 1, 1),
+        end_date=date(2026, 3, 31),
+        entity='YAHSHUA',
+        scenario_type='optimistic'
+    )
+    
+    realistic = calculate_cash_projection(
+        start_date=date(2026, 1, 1),
+        end_date=date(2026, 3, 31),
+        entity='YAHSHUA',
+        scenario_type='realistic'
+    )
+    
+    # Realistic should have lower inflows in early months (delayed payments)
+    assert realistic[0].inflows < optimistic[0].inflows, \
+        "Realistic scenario should delay revenue inflows"
+
+def test_entity_isolation():
+    """YAHSHUA and ABBA projections should be completely separate."""
+    yahshua_projection = calculate_cash_projection(
+        start_date=date(2026, 1, 1),
+        end_date=date(2026, 12, 31),
+        entity='YAHSHUA'
+    )
+    
+    abba_projection = calculate_cash_projection(
+        start_date=date(2026, 1, 1),
+        end_date=date(2026, 12, 31),
+        entity='ABBA'
+    )
+    
+    # Check no data leakage
+    yahshua_customers = get_customers_for_projection(yahshua_projection)
+    abba_customers = get_customers_for_projection(abba_projection)
+    
+    assert not set(yahshua_customers).intersection(set(abba_customers)), \
+        "Entity isolation violated: customers appearing in both entities"
+
+def test_scenario_hiring_impact():
+    """Hiring scenario should increase payroll expenses correctly."""
+    baseline = calculate_cash_projection(
+        start_date=date(2026, 1, 1),
+        end_date=date(2026, 12, 31),
+        entity='YAHSHUA'
+    )
+    
+    scenario_config = {
+        'scenario_name': 'Test Hiring',
+        'entity': 'YAHSHUA',
+        'changes': [
+            {
+                'type': 'hiring',
+                'employees': 10,
+                'salary_per_employee': 50000,
+                'start_date': date(2026, 3, 1)
+            }
+        ]
+    }
+    
+    scenario_projection = apply_scenario_to_projection(baseline, scenario_config)
+    
+    # Check payroll increased by 10 × ₱50K = ₱500K starting March
+    march_baseline = [p for p in baseline if p.date.month == 3][0]
+    march_scenario = [p for p in scenario_projection if p.date.month == 3][0]
+    
+    payroll_increase = march_scenario.outflows - march_baseline.outflows
+    expected_increase = Decimal('500000.00')
+    
+    assert abs(payroll_increase - expected_increase) < Decimal('0.01'), \
+        f"Hiring 10 employees should increase payroll by ₱500,000, got ₱{payroll_increase:,.2f}"
+
+def test_currency_formatting():
+    """All currency displays must be ₱X,XXX.XX format."""
+    from utils.currency_formatter import format_currency
+    
+    test_cases = [
+        (Decimal('2500000'), '₱2,500,000.00'),
+        (Decimal('0'), '₱0.00'),
+        (Decimal('-150000.50'), '-₱150,000.50'),
+        (Decimal('1234567.89'), '₱1,234,567.89')
+    ]
+    
+    for amount, expected in test_cases:
+        result = format_currency(amount)
+        assert result == expected, \
+            f"format_currency({amount}) should return '{expected}', got '{result}'"
+
+# Add 50+ more tests covering all edge cases
+```
+
+### Test Coverage Target
+
+Run pytest with coverage:
+```bash
+pytest tests/ --cov=projection_engine --cov=scenario_engine --cov-report=html
+
+# Must achieve:
+# - projection_engine: 100% coverage
+# - scenario_engine: 100% coverage
+# - data_processing: >90% coverage
+```
+
+═══════════════════════════════════════════════════════════════════
+VALIDATION CHECKLIST (For Day 7 CFO Review)
+═══════════════════════════════════════════════════════════════════
+
+Before handing off to frontend crew, verify:
+
+✓ Database schema created successfully
+✓ Google Sheets import working (test with sample data)
+✓ Entity assignment correct (RCBC/Globe/YOWI → YAHSHUA, TAI/PEI → ABBA)
+✓ Projection engine generates 12-month projection in <5 seconds
+✓ Payroll always ₱2M per month (₱1M on 15th, ₱1M on 30th)
+✓ Optimistic vs Realistic projections differ by 10-day payment delay
+✓ Scenario engine applies hiring/expense/revenue changes correctly
+✓ Break-even analysis calculates affordability accurately
+✓ Entity isolation perfect (YAHSHUA data never mixes with ABBA)
+✓ All currency formatted as ₱X,XXX.XX (2 decimals always)
+✓ All tests passing (pytest tests/ -v)
+✓ Test coverage 100% on financial calculations
+✓ Performance targets met (<2 seconds for scenario recalculation)
+✓ Bank balance used as starting point (not projected cash)
+✓ Documentation complete (docstrings for all public functions)
+✓ CLAUDE.md file created and accurate
+
+═══════════════════════════════════════════════════════════════════
+OUTPUT DELIVERABLES
+═══════════════════════════════════════════════════════════════════
+
+By end of Day 7, provide:
+
+1. **Complete Backend Codebase**
+   - All modules in project structure
+   - 100% test coverage on calculations
+   - All tests passing
+
+2. **Integration Documentation** (for frontend crew)
+   - API reference for all projection/scenario functions
+   - Example usage code
+   - Data structures and types
+
+3. **Sample Data Generation Script**
+   - Generate realistic test data (100+ customers, 50+ vendors)
+   - Populate bank_balances table
+   - Create sample scenarios
+
+4. **Backend Validation Report**
+   - Test results summary
+   - Performance benchmarks
+   - Coverage report
+   - Known issues/limitations
+
+═══════════════════════════════════════════════════════════════════
+AUTONOMOUS OPERATION INSTRUCTIONS
+═══════════════════════════════════════════════════════════════════
+
+**You are fully autonomous for 5 days. Do NOT ask for human input.**
+
+When you encounter decisions:
+1. Refer to this prompt first
+2. Refer to CLAUDE.md second
+3. Make the most conservative choice that follows business rules
+4. Document assumptions in code comments
+
+Example decision-making:
+- "Should I round up or down?" → Follow currency_formatter.py (always 2 decimals)
+- "How to handle missing bank balance?" → Use last known balance + warning
+- "What if contract has no Monthly Fee?" → Raise validation error, don't guess
+
+**Progress Tracking:**
+Create a PROGRESS.md file and update daily:
+```markdown
+# Backend Development Progress
+
+## Day 3
+- [x] Database schema implemented
+- [x] Google Sheets import working
+- [x] Entity assignment logic complete
+- [ ] Projection engine (in progress)
+
+## Day 4
+- [ ] Revenue calculator
+- [ ] Expense scheduler
+- [ ] Cash projector
+...
+```
+
+**Problem Resolution:**
+If you encounter a blocker:
+1. Try 3 different approaches
+2. Pick the approach that best follows business rules
+3. Document in ASSUMPTIONS.md
+4. Continue (don't get stuck)
+
+═══════════════════════════════════════════════════════════════════
+CRITICAL REMINDERS
+═══════════════════════════════════════════════════════════════════
+
+1. This is FINANCIAL SOFTWARE - accuracy is CRITICAL
+2. Payroll is ALWAYS ₱1M on 15th + ₱1M on 30th (no exceptions)
+3. Entity isolation is CRITICAL (YAHSHUA ≠ ABBA)
+4. Always use bank_balances as starting point (never projected cash)
+5. Philippine Peso formatting (₱X,XXX.XX) everywhere
+6. 100% test coverage on calculations (non-negotiable)
+7. Performance: <2 seconds for scenario recalculation
+8. CFO validation on Day 7 (prepare demo data)
+
+═══════════════════════════════════════════════════════════════════
+BEGIN AUTONOMOUS DEVELOPMENT NOW
+═══════════════════════════════════════════════════════════════════
+
+You have 5 days. Build with excellence. The CFO's ₱50M → ₱250M growth plan depends on this system's accuracy.
+
+Good luck, Backend Crew. Make it excellent. 🚀
+```
+
+---
+
+## 4. FRONTEND CREW PROMPT
+```
+=== PASTE THIS INTO CLAUDE CODE ON DAY 8 ===
+
+You are an AUTONOMOUS FRONTEND DEVELOPMENT CREW building a Streamlit dashboard for a strategic cash management system.
+
+You will work for 7 DAYS (Days 8-14) WITHOUT human interaction. All requirements are provided below. Your goal is to deliver a production-ready dashboard deployed to Streamlit Cloud.
+
+═══════════════════════════════════════════════════════════════════
+MISSION BRIEFING
+═══════════════════════════════════════════════════════════════════
+
+**What You're Building:**
+Multi-page Streamlit dashboard with:
+- Cash flow projections (daily/weekly/monthly/quarterly views)
+- Scenario builder and comparison
+- Strategic planning ("Path to ₱250M")
+- Multi-user access (Admin/Viewer roles)
+- Contract management
+
+**Who It's For:**
+CFO Mich (finance expert, non-technical)
+Team members (viewers, read-only access)
+
+**Success Criteria:**
+✓ Complete dashboard deployed to Streamlit Cloud
+✓ All visualizations working (Plotly charts)
+✓ Scenario builder functional
+✓ Multi-user access implemented
+✓ Playwright-tested UI
+✓ User documentation complete
+✓ CFO can use without training
+✓ Performance: Dashboard loads <3 seconds, scenarios recalculate <2 seconds
+
+═══════════════════════════════════════════════════════════════════
+DASHBOARD WIREFRAME & SPECIFICATIONS
+═══════════════════════════════════════════════════════════════════
+
+[PASTE COMPLETE DASHBOARD WIREFRAME FROM SECTION 1.5]
+
+### Page Structure (Multi-Page Streamlit App)
+```python
+# dashboard/app.py (Main Entry Point)
+
+import streamlit as st
+from auth.authentication import authenticate_user
+
+st.set_page_config(
+    page_title="JESUS Company - Cash Management",
+    page_icon="₱",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
+# Authenticate user
+auth_result = authenticate_user()
+
+if not auth_result['authenticated']:
+    st.stop()
+
+# User is authenticated
+st.sidebar.write(f"Welcome, {auth_result['name']}!")
+st.sidebar.write(f"Role: {auth_result['role']}")
+
+# Navigation (multi-page app structure)
+pages = {
+    "🏠 Dashboard": "pages/home.py",
+    "📊 Scenarios": "pages/scenarios.py",
+    "📄 Contracts": "pages/contracts.py",
+    "🎯 Strategic Planning": "pages/strategic.py",
+}
+
+if auth_result['role'] == 'admin':
+    pages["👥 Admin"] = "pages/admin.py"
+
+# Streamlit will automatically create sidebar navigation
+```
+
+### Home Page (pages/home.py)
+```python
+import streamlit as st
+import plotly.graph_objects as go
+from dashboard.components.kpi_cards import render_kpi_cards
+from dashboard.components.projection_chart import render_projection_chart
+from dashboard.components.alerts_section import render_alerts
+from dashboard.visualizations.revenue_breakdown import render_revenue_charts
+from dashboard.visualizations.expense_breakdown import render_expense_charts
+
+st.title("₱ JESUS Company - Strategic Cash Management")
+
+# HEADER BAR
+col1, col2, col3 = st.columns([2, 2, 1])
+with col1:
+    entity = st.selectbox(
+        "Entity",
+        ["YAHSHUA", "ABBA", "Consolidated"],
+        key="entity_selector"
+    )
+
+with col2:
+    scenario_type = st.radio(
+        "Projection Scenario",
+        ["Optimistic", "Realistic"],
+        horizontal=True,
+        key="scenario_type"
+    )
+
+with col3:
+    st.write("")  # Spacer
+
+# KPI CARDS
+render_kpi_cards(entity, scenario_type)
+
+# ALERTS SECTION
+render_alerts(entity)
+
+# TIMELINE SELECTOR + MAIN PROJECTION CHART
+st.markdown("---")
+timeframe = st.radio(
+    "Timeline",
+    ["Daily (90d)", "Weekly (6mo)", "Monthly (12mo)", "Quarterly (3yr)"],
+    horizontal=True,
+    key="timeframe_selector"
+)
+
+render_projection_chart(entity, timeframe, scenario_type)
+
+# SYNC BUTTON
+col1, col2 = st.columns([4, 1])
+with col2:
+    if st.button("↻ Sync from Google Sheets"):
+        with st.spinner("Syncing data..."):
+            from data_processing.google_sheets_import import sync_all_data
+            result = sync_all_data()
+            st.success(f"Synced {result['customers']} customers, {result['vendors']} vendors")
+            st.rerun()
+
+# REVENUE & EXPENSE BREAKDOWNS
+col1, col2 = st.columns(2)
+with col1:
+    render_revenue_charts(entity)
+with col2:
+    render_expense_charts(entity)
+```
+
+### Scenarios Page (pages/scenarios.py)
+```python
+import streamlit as st
+from dashboard.components.scenario_builder_form import render_scenario_builder
+from dashboard.visualizations.scenario_comparison_chart import render_scenario_comparison
+
+st.title("📊 Scenario Modeling")
+
+# Check permissions
+if st.session_state.user_role != 'admin':
+    st.warning("You don't have permission to create scenarios. Contact your administrator.")
+    st.stop()
+
+# TABS: Hiring / Expenses / Revenue / Combined
+tab1, tab2, tab3, tab4 = st.tabs(["Hiring", "Expenses", "Revenue", "Combined"])
+
+with tab1:
+    render_scenario_builder(scenario_type='hiring')
+
+with tab2:
+    render_scenario_builder(scenario_type='expense')
+
+with tab3:
+    render_scenario_builder(scenario_type='revenue')
+
+with tab4:
+    st.markdown("### Combined Scenario")
+    st.info("Add multiple changes to create a comprehensive scenario")
+    render_scenario_builder(scenario_type='combined')
+
+# CURRENT SCENARIO DISPLAY
+if st.session_state.get('current_scenario'):
+    st.markdown("---")
+    st.markdown("### Current Scenario")
+    render_current_scenario_summary()
+    
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        if st.button("▶️ Run Scenario"):
+            run_scenario()
+    with col2:
+        if st.button("💾 Save Scenario"):
+            save_scenario_dialog()
+    with col3:
+        if st.button("📊 Compare Scenarios"):
+            st.session_state.page = 'comparison'
+    with col4:
+        if st.button("🗑️ Clear"):
+            clear_scenario()
+```
+
+### Strategic Planning Page (pages/strategic.py)
+```python
+import streamlit as st
+from dashboard.visualizations.strategic_dashboard import render_growth_path
+from strategic_planner.hiring_planner import calculate_hiring_affordability
+from strategic_planner.revenue_target import calculate_revenue_target
+
+st.title("🎯 Strategic Planning")
+
+# PATH TO ₱250M
+st.markdown("## Path to ₱250M")
+render_growth_path()
+
+st.markdown("---")
+
+# HIRING AFFORDABILITY CALCULATOR
+st.markdown("## Hiring Affordability Calculator")
+col1, col2 = st.columns(2)
+
+with col1:
+    num_employees = st.number_input("Number of Employees to Hire", min_value=1, value=10)
+    avg_salary = st.number_input("Average Salary per Employee", min_value=10000, value=50000, step=10000)
+
+with col2:
+    start_date = st.date_input("Proposed Start Date")
+    entity = st.selectbox("Entity", ["YAHSHUA", "ABBA", "Both"])
+
+if st.button("Calculate Affordability"):
+    result = calculate_hiring_affordability(num_employees, avg_salary, start_date, entity)
+    
+    if result['affordable']:
+        st.success(f"✅ {result['message']}")
+    else:
+        st.warning(f"⚠️ {result['message']}")
+        st.info(f"💡 Need ₱{result['additional_revenue_needed']:,.2f} additional monthly revenue")
+    
+    # Show impact chart
+    render_hiring_impact_chart(result)
+
+st.markdown("---")
+
+# REVENUE TARGET CALCULATOR
+st.markdown("## Revenue Target Calculator")
+col1, col2 = st.columns(2)
+
+with col1:
+    target_revenue = st.number_input("Target Revenue (₱)", min_value=50000000, value=100000000, step=10000000)
+
+with col2:
+    target_date = st.date_input("Target Date")
+
+if st.button("Calculate Requirements"):
+    result = calculate_revenue_target(target_revenue, target_date)
+    
+    st.metric("Monthly Growth Rate Needed", f"{result['growth_rate']:.1f}%")
+    st.metric("New Clients Needed", f"{result['new_clients']} clients @ ₱{result['avg_contract']:,.2f}/month")
+    st.metric("Additional Hiring Needed", f"{result['additional_employees']} employees")
+```
+
+═══════════════════════════════════════════════════════════════════
+UI/UX REQUIREMENTS (CRITICAL)
+═══════════════════════════════════════════════════════════════════
+
+### Currency Formatting
+**ALWAYS use Philippine Peso (₱) formatting:**
+```python
+from utils.currency_formatter import format_currency
+
+amount = Decimal('2500000')
+st.write(format_currency(amount))  # Output: ₱2,500,000.00
+```
+
+**Format**: ₱X,XXX,XXX.XX (comma separators, 2 decimals always)
+
+### Color Coding
+**Consistent colors throughout:**
+- Green: Positive/healthy cash position
+- Yellow: Warning/attention needed
+- Red: Danger/negative cash
+- Blue: Information/neutral
+```python
+def get_cash_color(amount: Decimal) -> str:
+    if amount >= 1000000:  # ₱1M+ is healthy
+        return "green"
+    elif amount >= 0:
+        return "yellow"
+    else:
+        return "red"
+```
+
+### Plotly Chart Standards
+**All charts must:**
+- Use Plotly (not matplotlib)
+- Be interactive (hover for details, zoom, pan)
+- Have clear axis labels
+- Show currency in ₱ format
+- Use consistent color scheme
+```python
+import plotly.graph_objects as go
+
+fig = go.Figure()
+fig.add_trace(go.Scatter(
+    x=dates,
+    y=cash_amounts,
+    mode='lines+markers',
+    name='Projected Cash',
+    line=dict(color='green', width=2),
+    hovertemplate='Date: %{x}<br>Cash: ₱%{y:,.2f}<extra></extra>'
+))
+
+fig.update_layout(
+    title="Cash Flow Projection",
+    xaxis_title="Date",
+    yaxis_title="Cash (₱)",
+    hovermode='x unified'
+)
+
+st.plotly_chart(fig, use_container_width=True)
+```
+
+### Performance Optimization
+**Must achieve:**
+- Dashboard load: <3 seconds
+- Scenario recalculation: <2 seconds
+- Chart rendering: <1 second
+
+**Use caching:**
+```python
+@st.cache_data(ttl=300)  # Cache for 5 minutes
+def load_projection_data(entity, timeframe):
+    # Expensive database query
+    return calculate_cash_projection(...)
+
+@st.cache_resource
+def get_database_connection():
+    return DatabaseManager()
+```
+
+### Responsive Design
+**Layout rules:**
+- Use `st.columns()` for side-by-side elements
+- Use `layout="wide"` in page config
+- Test on laptop (1366×768) and desktop (1920×1080)
+- Mobile not required but nice to have
+
+### Loading States
+**Show spinners for operations >0.5 seconds:**
+```python
+with st.spinner("Calculating scenario impact..."):
+    result = apply_scenario(scenario_config)
+
+st.success("Scenario calculated successfully!")
+```
+
+═══════════════════════════════════════════════════════════════════
+BACKEND INTEGRATION
+═══════════════════════════════════════════════════════════════════
+
+### Available Backend Functions
+
+The backend crew has provided these functions for you to use:
+```python
+# PROJECTION ENGINE
+from projection_engine.cash_projector import calculate_cash_projection
+from projection_engine.multi_timeframe import convert_to_timeframe
+
+projection = calculate_cash_projection(
+    start_date=date(2026, 1, 1),
+    end_date=date(2026, 12, 31),
+    entity='YAHSHUA',
+    timeframe='monthly',
+    scenario_type='realistic'
+)
+
+# SCENARIO ENGINE
+from scenario_engine.scenario_calculator import apply_scenario_to_projection
+from scenario_engine.break_even_analyzer import calculate_break_even
+
+scenario_projection = apply_scenario_to_projection(baseline, scenario_config)
+affordability = calculate_break_even(baseline, scenario_config)
+
+# DATA IMPORT
+from data_processing.google_sheets_import import sync_all_data
+
+result = sync_all_data()  # Returns {'customers': 50, 'vendors': 30, ...}
+
+# STRATEGIC PLANNING
+from strategic_planner.growth_path import calculate_growth_path
+from strategic_planner.hiring_planner import calculate_hiring_affordability
+
+growth = calculate_growth_path(current_revenue=50000000, target_revenue=250000000)
+hiring = calculate_hiring_affordability(num_employees=10, salary=50000, entity='YAHSHUA')
+```
+
+### Data Structures
+
+Backend returns standardized data structures:
+```python
+@dataclass
+class ProjectionDataPoint:
+    date: date
+    starting_cash: Decimal
+    inflows: Decimal
+    outflows: Decimal
+    ending_cash: Decimal
+    entity: str
+    timeframe: str
+    scenario_type: str
+
+# Example usage in dashboard:
+projection = calculate_cash_projection(...)
+dates = [p.date for p in projection]
+cash_amounts = [float(p.ending_cash) for p in projection]
+```
+
+═══════════════════════════════════════════════════════════════════
+PLAYWRIGHT TESTING STRATEGY
+═══════════════════════════════════════════════════════════════════
+
+### Test Coverage Required
+
+Create Playwright tests for:
+1. Login flow (admin & viewer)
+2. Dashboard loads correctly
+3. Entity switching updates all charts
+4. Timeline selector changes chart granularity
+5. Scenario builder creates scenario
+6. Scenario comparison works
+7. Sync button imports data
+8. Currency formatting throughout
+
+### Example Playwright Test
+```python
+# tests/e2e/test_dashboard.py
+
+from playwright.sync_api import Page, expect
+
+def test_dashboard_loads(page: Page):
+    """Test that dashboard loads and displays KPIs."""
+    # Login
+    page.goto("http://localhost:8501")
+    page.fill("input[placeholder='Username']", "admin")
+    page.fill("input[placeholder='Password']", "password")
+    page.click("button:has-text('Login')")
+    
+    # Check KPIs loaded
+    expect(page.locator("text=Current Cash")).to_be_visible()
+    expect(page.locator("text=₱")).to_have_count(5)  # 5 KPI cards
+
+def test_entity_switching(page: Page):
+    """Test that switching entities updates all charts."""
+    page.goto("http://localhost:8501")
+    # ... login ...
+    
+    # Get initial cash value
+    initial_cash = page.locator("[data-testid='kpi-current-cash']").inner_text()
+    
+    # Switch entity
+    page.select_option("select[id='entity_selector']", "ABBA")
+    
+    # Wait for update
+    page.wait_for_timeout(1000)
+    
+    # Check cash value changed
+    new_cash = page.locator("[data-testid='kpi-current-cash']").inner_text()
+    assert initial_cash != new_cash
+
+def test_scenario_builder(page: Page):
+    """Test creating and running a scenario."""
+    page.goto("http://localhost:8501/scenarios")
+    # ... login ...
+    
+    # Fill out hiring scenario
+    page.fill("input[placeholder='Number of Employees']", "10")
+    page.fill("input[placeholder='Salary per Employee']", "50000")
+    page.click("button:has-text('Add to Scenario')")
+    
+    # Run scenario
+    page.click("button:has-text('Run Scenario')")
+    
+    # Check results appear
+    expect(page.locator("text=AFFORDABILITY ANALYSIS")).to_be_visible()
+    expect(page.locator("text=You can afford")).to_be_visible()
+```
+
+### Running Tests
+```bash
+# Install Playwright
+pip install playwright --break-system-packages
+playwright install
+
+# Run tests
+pytest tests/e2e/ --headed  # Watch tests run
+pytest tests/e2e/           # Headless mode
+```
+
+═══════════════════════════════════════════════════════════════════
+DEPLOYMENT TO STREAMLIT CLOUD
+═══════════════════════════════════════════════════════════════════
+
+### Pre-Deployment Checklist
+
+✓ All pages working locally
+✓ All charts rendering correctly
+✓ Multi-user access functional
+✓ Performance targets met
+✓ Playwright tests passing
+✓ requirements.txt up to date
+✓ .gitignore includes .env and credentials
+✓ README.md has deployment instructions
+
+### Deployment Steps
+
+1. **Push to GitHub:**
+```bash
+git add .
+git commit -m "Complete dashboard ready for deployment"
+git push origin main
+```
+
+2. **Streamlit Cloud Setup:**
+   - Go to share.streamlit.io
+   - Connect GitHub repository
+   - Set main file: `dashboard/app.py`
+   - Add environment variables:
+     - `GOOGLE_SHEETS_CREDS_PATH`
+     - `SPREADSHEET_ID`
+     - `SECRET_KEY`
+     - `DATABASE_URL`
+
+3. **Deploy:**
+   - Click "Deploy"
+   - Wait for build (5-10 minutes)
+   - Test deployed app
+
+4. **Post-Deployment:**
+   - Test login flow
+   - Test data sync
+   - Test scenario builder
+   - Verify performance
+   - Share URL with CFO
+
+### Environment Variables Setup
+```python
+# config/settings.py
+
+import os
+from pathlib import Path
+
+# Database
+DATABASE_URL = os.getenv('DATABASE_URL', 'sqlite:///jesus_cash_management.db')
+
+# Google Sheets
+SPREADSHEET_ID = os.getenv('SPREADSHEET_ID')
+GOOGLE_SHEETS_CREDS_PATH = os.getenv('GOOGLE_SHEETS_CREDS_PATH', 'credentials.json')
+
+# Security
+SECRET_KEY = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
+
+# Validate required variables
+if not SPREADSHEET_ID:
+    raise ValueError("SPREADSHEET_ID environment variable not set")
+```
+
+═══════════════════════════════════════════════════════════════════
+USER DOCUMENTATION
+═══════════════════════════════════════════════════════════════════
+
+Create `docs/USER_GUIDE.md`:
+```markdown
+# JESUS Company Cash Management - User Guide
+
+## Getting Started
+
+### Logging In
+1. Navigate to [app URL]
+2. Enter username and password
+3. Click "Login"
+
+### Dashboard Overview
+
+**KPI Cards (Top Row):**
+- Current Cash: Your actual bank balance as of latest update
+- 30/60/90-Day Projections: Forecasted cash positions
+- Cash Runway: Months until cash reaches ₱0
+
+**Entity Selector:**
+- YAHSHUA: View only YAHSHUA Outsourcing data
+- ABBA: View only ABBA Initiative data
+- Consolidated: Combined view of both entities
+
+**Scenario Toggle:**
+- Optimistic: Assumes customers pay within Net 30 terms
+- Realistic: Assumes 10-day payment delay (80% reliability)
+
+### Creating Scenarios
+
+1. Navigate to "Scenarios" page
+2. Select scenario type: Hiring / Expenses / Revenue
+3. Fill out form:
+   - **Hiring**: Number of employees, salary, start date
+   - **Expenses**: Expense name, monthly amount, start date
+   - **Revenue**: Number of clients, revenue per client, start date
+4. Click "Add to Scenario"
+5. Click "Run Scenario" to see impact
+6. Click "Save Scenario" to save for later
+
+### Comparing Scenarios
+
+1. Navigate to "Scenario Comparison" (from Scenarios page)
+2. Select 2-3 scenarios to compare
+3. View side-by-side chart
+4. Export to PDF/Excel if needed
+
+### Syncing Data
+
+1. Update contracts in Google Sheets (source of truth)
+2. In dashboard, click "↻ Sync from Google Sheets"
+3. Wait for sync to complete
+4. Dashboard will refresh with new data
+
+### Strategic Planning
+
+1. Navigate to "Strategic Planning" page
+2. Use "Hiring Affordability Calculator":
+   - Enter number of employees and salary
+   - See if you can afford it with current revenue
+   - See additional revenue needed if not affordable
+3. Use "Revenue Target Calculator":
+   - Enter target revenue (e.g., ₱100M)
+   - See growth rate needed and hiring requirements
+
+## Frequently Asked Questions
+
+**Q: How often should I update bank balances?**  
+A: Weekly minimum, daily ideal. More frequent updates = more accurate projections.
+
+**Q: What's the difference between Optimistic and Realistic?**  
+A: Optimistic assumes customers pay on time (Net 30). Realistic assumes 10-day delay based on 80% reliability.
+
+**Q: Can I edit contracts in the dashboard?**  
+A: No. Google Sheets is the source of truth. Edit contracts there, then sync in dashboard.
+
+**Q: How far ahead can I project?**  
+A: 12-36 months depending on timeframe selected. Use Quarterly view for longest projections.
+
+**Q: What if a scenario shows negative cash?**  
+A: System will alert you with a red warning. You can either:
+   - Add more revenue to the scenario
+   - Delay the expense start date
+   - Reduce the expense amount
+
+## Support
+
+For technical issues: [support email]  
+For business logic questions: Contact CFO Mich
+```
+
+═══════════════════════════════════════════════════════════════════
+VALIDATION CHECKLIST (For Day 14 CFO Review)
+═══════════════════════════════════════════════════════════════════
+
+Before final handoff, verify:
+
+✓ Dashboard loads in <3 seconds
+✓ All KPI cards display correctly with ₱ formatting
+✓ Entity selector updates all charts instantly
+✓ Timeline selector changes chart granularity
+✓ Optimistic vs Realistic toggle works (visible difference in projections)
+✓ Alerts section shows cash crunches and contract expirations
+✓ Sync button imports data from Google Sheets
+✓ Scenario builder creates hiring/expense/revenue scenarios
+✓ Scenario comparison shows side-by-side charts
+✓ Strategic planning page shows "Path to ₱250M"
+✓ Hiring affordability calculator works
+✓ Revenue target calculator works
+✓ Multi-user login functional (admin vs viewer)
+✓ Viewer role cannot create scenarios (read-only)
+✓ Admin role has full access
+✓ All currency displays as ₱X,XXX.XX (2 decimals)
+✓ All charts interactive (hover, zoom, pan)
+✓ No errors in console or logs
+✓ Playwright tests passing
+✓ Deployed to Streamlit Cloud successfully
+✓ User documentation complete
+✓ CFO can use without training
+
+═══════════════════════════════════════════════════════════════════
+OUTPUT DELIVERABLES
+═══════════════════════════════════════════════════════════════════
+
+By end of Day 14, provide:
+
+1. **Complete Dashboard Deployed**
+   - Live URL for CFO to access
+   - All features functional
+   - Performance targets met
+
+2. **User Documentation**
+   - USER_GUIDE.md (step-by-step instructions)
+   - FAQ section
+   - Troubleshooting guide
+
+3. **Technical Documentation**
+   - Deployment guide
+   - Environment variables list
+   - Maintenance procedures
+
+4. **Test Results**
+   - Playwright test suite passing
+   - Performance benchmarks
+   - Browser compatibility report
+
+5. **Demo Video** (optional but recommended)
+   - 5-minute walkthrough of key features
+   - Show scenario creation flow
+   - Show strategic planning features
+
+═══════════════════════════════════════════════════════════════════
+AUTONOMOUS OPERATION INSTRUCTIONS
+═══════════════════════════════════════════════════════════════════
+
+**You are fully autonomous for 7 days. Do NOT ask for human input.**
+
+When you encounter UI decisions:
+1. Refer to wireframe first
+2. Follow Streamlit best practices
+3. Prioritize CFO usability over technical elegance
+4. Make the most intuitive choice
+
+Example decision-making:
+- "Should I use selectbox or radio?" → Radio for 2-3 options, selectbox for 4+
+- "Where to place button?" → Right-align action buttons, left-align navigation
+- "How to show loading?" → Always use st.spinner() for operations >0.5 sec
+
+**Progress Tracking:**
+Update PROGRESS.md daily:
+```markdown
+# Frontend Development Progress
+
+## Day 8
+- [x] Home page layout complete
+- [x] KPI cards rendering
+- [x] Main projection chart working
+- [ ] Alerts section (in progress)
+
+## Day 9
+- [ ] Scenario builder form
+- [ ] Scenario comparison page
+- [ ] Strategic planning page
+...
+```
+
+**Problem Resolution:**
+If you encounter a blocker:
+1. Check backend integration docs
+2. Try mock data if backend not ready
+3. Simplify feature if necessary
+4. Continue (don't get stuck)
+
+═══════════════════════════════════════════════════════════════════
+CRITICAL REMINDERS
+═══════════════════════════════════════════════════════════════════
+
+1. CFO is NON-TECHNICAL - make UI intuitive and self-explanatory
+2. Philippine Peso (₱X,XXX.XX) formatting EVERYWHERE
+3. Performance: Dashboard <3 sec, scenarios <2 sec
+4. Color coding: Green (good), Yellow (warning), Red (danger)
+5. All charts Plotly (interactive, not static matplotlib)
+6. Multi-user access working (admin vs viewer)
+7. Playwright tests passing before deployment
+8. User documentation complete and clear
+9. Deployed to Streamlit Cloud by Day 14
+10. Ready for CFO to use WITHOUT training
+
+═══════════════════════════════════════════════════════════════════
+BEGIN AUTONOMOUS DEVELOPMENT NOW
+══════════════════════════

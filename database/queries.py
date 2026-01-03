@@ -84,6 +84,8 @@ def get_vendors(entity: Optional[str] = None, status: str = 'Active') -> List[Di
                 'amount': Decimal(str(v.amount)),
                 'frequency': v.frequency,
                 'due_date': v.due_date,
+                'start_date': v.start_date,
+                'end_date': v.end_date,
                 'entity': v.entity,
                 'priority': v.priority,
                 'flexibility_days': v.flexibility_days,

@@ -203,6 +203,8 @@ try:
                 'Amount': format_currency(v['amount']),
                 'Frequency': v['frequency'],
                 'Due Date': v['due_date'].strftime('%b %d') if v['due_date'] else 'N/A',
+                'Start Date': v['start_date'].strftime('%Y-%m-%d') if v.get('start_date') else 'Active',
+                'End Date': v['end_date'].strftime('%Y-%m-%d') if v.get('end_date') else 'Ongoing',
                 'Entity': v['entity'],
                 'Priority': v['priority']
             })

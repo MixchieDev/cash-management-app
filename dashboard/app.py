@@ -138,21 +138,22 @@ Welcome to the strategic cash management system. Use the sidebar to navigate to 
 # Quick stats
 from database.queries import get_latest_bank_balance, get_total_mrr
 from utils.currency_formatter import format_currency
+from dashboard.components.styling import kpi_card
 
 try:
-    col1, col2, col3 = st.columns(3)
+    col1, col2, col3 = st.columns(3, gap="medium")
 
     with col1:
         yahshua_balance = get_latest_bank_balance('YAHSHUA')
-        st.metric("YAHSHUA Cash", format_currency(yahshua_balance['amount']))
+        kpi_card("YAHSHUA Cash", format_currency(yahshua_balance['amount']))
 
     with col2:
         abba_balance = get_latest_bank_balance('ABBA')
-        st.metric("ABBA Cash", format_currency(abba_balance['amount']))
+        kpi_card("ABBA Cash", format_currency(abba_balance['amount']))
 
     with col3:
         total_balance = yahshua_balance['amount'] + abba_balance['amount']
-        st.metric("Consolidated Cash", format_currency(total_balance))
+        kpi_card("Consolidated Cash", format_currency(total_balance))
 
 except Exception as e:
     st.warning(f"Unable to load quick stats: {str(e)}")

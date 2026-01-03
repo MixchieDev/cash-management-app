@@ -29,11 +29,11 @@ page_header("User Administration", "Manage system users and permissions")
 
 st.markdown(f'''
 <div style="
-    background: {COLORS['info_light']};
-    border-left: 4px solid {COLORS['info']};
-    padding: 12px 16px;
-    border-radius: 0 6px 6px 0;
-    font-size: 14px;
+    background: {COLORS['accent_light']};
+    border-left: 4px solid {COLORS['accent']};
+    padding: 14px 18px;
+    border-radius: 0 10px 10px 0;
+    font-size: 15px;
     color: {COLORS['text_primary']};
     margin: 16px 0;
 ">

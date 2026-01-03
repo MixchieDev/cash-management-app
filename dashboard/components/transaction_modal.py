@@ -46,7 +46,7 @@ def show_transaction_breakdown_modal(
         with col2:
             if st.button("✕ Close", key="close_modal", type="secondary"):
                 st.session_state.show_transaction_modal = False
-                st.rerun()
+                # Removed st.rerun() - Streamlit auto-reruns on session state change
 
         st.markdown("---")
 

@@ -335,7 +335,7 @@ if projection_data:
             'entity': entity
         }
         st.session_state.show_transaction_modal = True
-        st.rerun()
+        # Removed st.rerun() - Streamlit auto-reruns on session state change
 
     # Show info about clicking
     st.info("💡 Click on any point on the chart to see detailed transaction breakdown")

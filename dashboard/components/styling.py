@@ -48,11 +48,11 @@ def kpi_card(label: str, value: str, change: str = None, change_positive: bool =
 
     change_html = ''
     if change:
-        change_html = f'<div style="font-size: 12px; color: {change_color}; margin-top: 4px;">{arrow} {change}</div>'
+        change_html = f'<div style="font-size: 13px; color: {change_color}; margin-top: 8px;">{arrow} {change}</div>'
 
-    html = f'''<div style="background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 8px; padding: 20px 24px; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);">
-<div style="font-size: 12px; text-transform: uppercase; color: #6B7280; letter-spacing: 0.5px; margin-bottom: 8px;">{label}</div>
-<div style="font-size: 28px; font-weight: 700; color: #111827; font-family: monospace;">{value}</div>
+    html = f'''<div style="background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 8px; padding: 16px 20px; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);">
+<div style="font-size: 11px; text-transform: uppercase; color: #6B7280; letter-spacing: 0.5px; margin-bottom: 12px;">{label}</div>
+<div style="font-size: 24px; font-weight: 700; color: #111827; font-family: monospace; line-height: 1.2;">{value}</div>
 {change_html}</div>'''
 
     st.markdown(html, unsafe_allow_html=True)

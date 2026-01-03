@@ -55,6 +55,10 @@ htmlcov/
 !docs/*.xlsx
 !docs/*.csv
 
+# Database files (runtime data)
+*.db
+*.db.backup_*
+
 # Logs
 *.log
 

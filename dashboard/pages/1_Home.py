@@ -14,9 +14,11 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from auth.authentication import require_auth
 from config.constants import PAYMENT_PLAN_FREQUENCIES
-from projection_engine.cash_projector import CashProjector
+from projection_engine.cash_projector import CashProjector, ProjectionResult
 from database.queries import get_latest_bank_balance, get_consolidated_bank_balance, get_total_mrr, get_total_monthly_expenses
 from utils.currency_formatter import format_currency
+from dashboard.components.transaction_modal import show_transaction_breakdown_modal
+from utils.period_helpers import calculate_period_range
 
 # ═══════════════════════════════════════════════════════════════════
 # PAGE SETUP
@@ -75,20 +77,33 @@ except Exception as e:
     st.stop()
 
 # ═══════════════════════════════════════════════════════════════════
+# INITIALIZE SESSION STATE FOR MODAL
+# ═══════════════════════════════════════════════════════════════════
+if 'show_transaction_modal' not in st.session_state:
+    st.session_state.show_transaction_modal = False
+if 'modal_period_data' not in st.session_state:
+    st.session_state.modal_period_data = None
+if 'projection_result' not in st.session_state:
+    st.session_state.projection_result = None
+
+# ═══════════════════════════════════════════════════════════════════
 # GENERATE PROJECTION
 # ═══════════════════════════════════════════════════════════════════
 try:
     projector = CashProjector()
-    projection = projector.calculate_cash_projection(
+    # Use detailed projection to get both aggregated data AND events
+    projection_result_90d = projector.calculate_cash_projection_detailed(
         start_date=date.today(),
         end_date=date.today() + timedelta(days=90),
         entity=entity,
         timeframe='daily',
         scenario_type=scenario_type.lower()
     )
+    projection = projection_result_90d.data_points
 except Exception as e:
     st.error(f"Error calculating projection: {str(e)}")
     projection = []
+    projection_result_90d = None
 
 # Extract key metrics
 if projection:
@@ -222,16 +237,24 @@ tf_key, tf_days = timeframe_map[timeframe]
 
 # Get projection for selected timeframe
 try:
-    projection_data = projector.calculate_cash_projection(
+    projection_result = projector.calculate_cash_projection_detailed(
         start_date=date.today(),
         end_date=date.today() + timedelta(days=tf_days),
         entity=entity,
         timeframe=tf_key,
         scenario_type=scenario_type.lower()
     )
+    projection_data = projection_result.data_points
+
+    # Store in session state for modal access
+    st.session_state.projection_result = projection_result
+    st.session_state.projection_start_date = date.today()
+    st.session_state.current_timeframe = tf_key
+
 except Exception as e:
     st.error(f"Error generating {timeframe} projection: {str(e)}")
     projection_data = []
+    projection_result = None
 
 if projection_data:
     # Build chart
@@ -277,9 +300,63 @@ if projection_data:
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
     )
 
-    st.plotly_chart(fig, use_container_width=True)
+    # Render chart with click event handling
+    selected = st.plotly_chart(
+        fig,
+        use_container_width=True,
+        on_select="rerun",
+        key="cash_flow_chart"
+    )
+
+    # Handle chart clicks
+    if selected and selected.selection and selected.selection.points:
+        clicked_point = selected.selection.points[0]
+        clicked_date = dates[clicked_point['point_index']]
+
+        # Calculate period range based on timeframe
+        period_start, period_end, period_label = calculate_period_range(
+            clicked_date,
+            st.session_state.current_timeframe,
+            st.session_state.projection_start_date
+        )
+
+        # Get events for this period
+        revenue_events, expense_events = projection_result.get_events_for_period(
+            period_start, period_end
+        )
+
+        # Store modal data in session state
+        st.session_state.modal_period_data = {
+            'period_label': period_label,
+            'period_start': period_start,
+            'period_end': period_end,
+            'revenue_events': revenue_events,
+            'expense_events': expense_events,
+            'entity': entity
+        }
+        st.session_state.show_transaction_modal = True
+        st.rerun()
+
+    # Show info about clicking
+    st.info("💡 Click on any point on the chart to see detailed transaction breakdown")
+
 else:
     st.warning("No projection data available")
+
+# ═══════════════════════════════════════════════════════════════════
+# TRANSACTION MODAL
+# ═══════════════════════════════════════════════════════════════════
+# Display transaction modal if active
+if st.session_state.show_transaction_modal and st.session_state.modal_period_data:
+    modal_data = st.session_state.modal_period_data
+    show_transaction_breakdown_modal(
+        period_label=modal_data['period_label'],
+        period_start=modal_data['period_start'],
+        period_end=modal_data['period_end'],
+        revenue_events=modal_data['revenue_events'],
+        expense_events=modal_data['expense_events'],
+        entity=modal_data['entity']
+    )
 
 # ═══════════════════════════════════════════════════════════════════
 # SYNC BUTTON

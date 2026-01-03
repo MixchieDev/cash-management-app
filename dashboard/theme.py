@@ -30,6 +30,8 @@ COLORS = {
     'warning_light': 'rgba(255, 149, 0, 0.1)',
     'danger': '#FF3B30',
     'danger_light': 'rgba(255, 59, 48, 0.1)',
+    'info': '#007AFF',
+    'info_light': 'rgba(0, 122, 255, 0.1)',
 
     # Entity colors
     'yahshua': '#007AFF',

@@ -16,6 +16,7 @@ from config.settings import (
     REALISTIC_PAYMENT_DELAY_DAYS
 )
 from database.models import CustomerContract
+from database.queries import get_payment_overrides
 
 
 @dataclass
@@ -146,8 +147,7 @@ class RevenueCalculator:
         self,
         contracts: List[CustomerContract],
         start_date: date,
-        end_date: date,
-        payment_overrides: Optional[List[Dict]] = None
+        end_date: date
     ) -> List[RevenueEvent]:
         """
         Calculate all revenue events (payments) for contracts.
@@ -156,20 +156,20 @@ class RevenueCalculator:
             contracts: List of active customer contracts
             start_date: Projection start date
             end_date: Projection end date
-            payment_overrides: List of payment overrides to apply (optional)
 
         Returns:
             List of revenue events (sorted by date)
         """
         events = []
 
-        # Build override lookup: (contract_id, original_date) -> override
+        # Load payment overrides for customer payments
+        overrides = get_payment_overrides(override_type='customer')
+
+        # Create a lookup dict: (customer_id, original_date) -> override
         override_lookup = {}
-        if payment_overrides:
-            for override in payment_overrides:
-                if override.get('override_type') == 'customer':
-                    key = (override['contract_id'], override['original_date'])
-                    override_lookup[key] = override
+        for override in overrides:
+            key = (override['contract_id'], override['original_date'])
+            override_lookup[key] = override
 
         for contract in contracts:
             # Skip inactive contracts
@@ -190,12 +190,15 @@ class RevenueCalculator:
                 )
 
                 # Check for payment override
-                override = override_lookup.get((contract.id, payment_date))
+                override_key = (contract.id, payment_date)
+                override = override_lookup.get(override_key)
+
                 if override:
+                    # Override found - apply it
                     if override['action'] == 'skip':
                         # Skip this payment entirely
                         continue
-                    elif override['action'] == 'move' and override.get('new_date'):
+                    elif override['action'] == 'move' and override['new_date']:
                         # Move payment to new date
                         payment_date = override['new_date']
 

@@ -48,37 +48,14 @@ def kpi_card(label: str, value: str, change: str = None, change_positive: bool =
 
     change_html = ''
     if change:
-        change_html = f'''
-        <div style="font-size: 12px; color: {change_color}; margin-top: 4px;">
-            {arrow} {change}
-        </div>
-        '''
+        change_html = f'<div style="font-size: 12px; color: {change_color}; margin-top: 4px;">{arrow} {change}</div>'
 
-    st.markdown(f'''
-    <div style="
-        background: #FFFFFF;
-        border: 1px solid #E5E7EB;
-        border-radius: 8px;
-        padding: 20px 24px;
-        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-        height: 100%;
-    ">
-        <div style="
-            font-size: 12px;
-            text-transform: uppercase;
-            color: #6B7280;
-            letter-spacing: 0.5px;
-            margin-bottom: 8px;
-        ">{label}</div>
-        <div style="
-            font-size: 28px;
-            font-weight: 700;
-            color: #111827;
-            font-family: 'SF Mono', 'Fira Code', monospace;
-        ">{value}</div>
-        {change_html}
-    </div>
-    ''', unsafe_allow_html=True)
+    html = f'''<div style="background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 8px; padding: 20px 24px; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);">
+<div style="font-size: 12px; text-transform: uppercase; color: #6B7280; letter-spacing: 0.5px; margin-bottom: 8px;">{label}</div>
+<div style="font-size: 28px; font-weight: 700; color: #111827; font-family: monospace;">{value}</div>
+{change_html}</div>'''
+
+    st.markdown(html, unsafe_allow_html=True)
 
 
 def section_card(content_func, title: str = None):

@@ -343,5 +343,63 @@ Added optional `end_date` field to vendor contracts. If blank, expenses continue
 
 ---
 
+**Monthly Equivalent Column** (Commit: `5a86664`)
+
+Added a "Monthly Equiv." column to the Vendor Contracts table that shows the normalized monthly cost for each expense, regardless of payment frequency.
+
+**Files Modified:**
+- `dashboard/pages/4_Contracts.py` - Added Monthly Equiv. column with frequency multipliers
+
+**Calculation:**
+| Frequency | Multiplier | Example |
+|-----------|------------|---------|
+| Monthly | ×1 | ₱50K → ₱50K/mo |
+| Quarterly | ÷3 | ₱150K → ₱50K/mo |
+| Annual | ÷12 | ₱600K → ₱50K/mo |
+| Bi-annually | ÷6 | ₱300K → ₱50K/mo |
+| One-time | — | Shows "—" |
+
+---
+
+**Payment Override System** (Commit: `ee1a070`)
+
+Added complete system for one-off payment date adjustments. Allows users to move or skip specific customer/vendor payments without changing the recurring schedule.
+
+**Files Added/Modified:**
+- `database/models.py` - New `PaymentOverride` model with unique constraint
+- `database/queries.py` - CRUD functions: `get_payment_overrides()`, `create_payment_override()`, `delete_payment_override()`, `get_overrides_for_contract()`, `get_customer_by_id()`, `get_vendor_by_id()`
+- `projection_engine/revenue_calculator.py` - Added `payment_overrides` parameter to `calculate_revenue_events()`
+- `projection_engine/expense_scheduler.py` - Added `payment_overrides` parameter to `calculate_vendor_events()`
+- `projection_engine/cash_projector.py` - Fetches overrides and passes to calculators
+- `dashboard/pages/8_Payment_Overrides.py` - NEW dashboard page for managing overrides
+- `database/migrations/003_add_payment_overrides.sql` - Migration file
+- `tests/test_payment_overrides.py` - 7 tests covering move, skip, and multi-vendor scenarios
+
+**PaymentOverride Model:**
+| Field | Type | Purpose |
+|-------|------|---------|
+| `override_type` | String | 'customer' or 'vendor' |
+| `contract_id` | Integer | Reference to customer/vendor contract |
+| `original_date` | Date | The scheduled payment date being overridden |
+| `new_date` | Date (nullable) | New payment date (null if skipping) |
+| `action` | String | 'move' or 'skip' |
+| `entity` | String | 'YAHSHUA' or 'ABBA' |
+| `reason` | Text | Optional notes |
+
+**How it works:**
+1. Go to "Payment Overrides" page in dashboard
+2. Select Customer or Vendor type
+3. Select the contract and upcoming payment date
+4. Choose action: Move to new date OR Skip entirely
+5. Add optional reason
+6. Override automatically reflects in cash flow projections
+
+**Example use cases:**
+- Client requested payment delay → Move customer payment from Jan 15 to Jan 25
+- Billing dispute with vendor → Skip February AWS payment
+- Holiday timing adjustment → Move payroll from Dec 31 to Dec 28
+
+---
+
 *Last Updated: January 3, 2026*
 *Prepared by: Master Orchestrator AI*

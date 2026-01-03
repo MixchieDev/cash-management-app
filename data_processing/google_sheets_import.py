@@ -268,6 +268,16 @@ def import_vendor_contracts(save_to_db: bool = True) -> List[Dict]:
                 # If it's a date string, parse it
                 due_date_obj = parse_date(due_date_value)
 
+            # Parse start_date (optional field)
+            # If empty/null, vendor is already active (no start date restriction)
+            # If specified, vendor expense only appears in projections from this date onwards
+            start_date_value = record.get('Start Date', '')
+            if start_date_value and str(start_date_value).strip():
+                start_date_obj = parse_date(start_date_value)
+            else:
+                # No start date = vendor is already active (use None)
+                start_date_obj = None
+
             # Parse data
             vendor = {
                 'vendor_name': str(record['Vendor Name']).strip(),
@@ -275,6 +285,7 @@ def import_vendor_contracts(save_to_db: bool = True) -> List[Dict]:
                 'amount': parse_decimal(record['Amount']),
                 'frequency': str(record['Frequency']).strip(),
                 'due_date': due_date_obj,
+                'start_date': start_date_obj,
                 'entity': str(record['Entity']).strip(),
                 'priority': int(record.get('Priority', 3)),
                 'flexibility_days': int(record.get('Flexibility Days', 0)),

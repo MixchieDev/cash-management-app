@@ -10,6 +10,7 @@ from dateutil.relativedelta import relativedelta
 
 from database.db_manager import db_manager
 from database.models import CustomerContract, VendorContract, BankBalance, Projection
+from database.queries import get_payment_overrides
 from projection_engine.revenue_calculator import RevenueCalculator, RevenueEvent
 from projection_engine.expense_scheduler import ExpenseScheduler, ExpenseEvent
 
@@ -274,12 +275,21 @@ class CashProjector:
         revenue_calc = RevenueCalculator(scenario_type=scenario_type)
         expense_scheduler = ExpenseScheduler()
 
-        # Calculate all revenue and expense events
+        # Fetch payment overrides for this entity and date range
+        payment_overrides = get_payment_overrides(
+            entity=entity,
+            start_date=start_date,
+            end_date=end_date
+        )
+
+        # Calculate all revenue and expense events (with overrides applied)
         revenue_events = revenue_calc.calculate_revenue_events(
-            customer_contracts, start_date, end_date
+            customer_contracts, start_date, end_date,
+            payment_overrides=[o for o in payment_overrides if o['override_type'] == 'customer']
         )
         expense_events = expense_scheduler.calculate_expense_events(
-            vendor_contracts, start_date, end_date, entity
+            vendor_contracts, start_date, end_date, entity,
+            payment_overrides=[o for o in payment_overrides if o['override_type'] == 'vendor']
         )
 
         print(f"Revenue events: {len(revenue_events)}, Expense events: {len(expense_events)}")
@@ -390,12 +400,21 @@ class CashProjector:
         revenue_calc = RevenueCalculator(scenario_type=scenario_type)
         expense_scheduler = ExpenseScheduler()
 
-        # Calculate ALL revenue and expense events
+        # Fetch payment overrides for this entity and date range
+        payment_overrides = get_payment_overrides(
+            entity=entity,
+            start_date=start_date,
+            end_date=end_date
+        )
+
+        # Calculate ALL revenue and expense events (with overrides applied)
         revenue_events = revenue_calc.calculate_revenue_events(
-            customer_contracts, start_date, end_date
+            customer_contracts, start_date, end_date,
+            payment_overrides=[o for o in payment_overrides if o['override_type'] == 'customer']
         )
         expense_events = expense_scheduler.calculate_expense_events(
-            vendor_contracts, start_date, end_date, entity
+            vendor_contracts, start_date, end_date, entity,
+            payment_overrides=[o for o in payment_overrides if o['override_type'] == 'vendor']
         )
 
         # Generate aggregated projection data points (reuse existing logic)

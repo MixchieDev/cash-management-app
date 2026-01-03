@@ -107,7 +107,8 @@ class ExpenseScheduler:
         contracts: List[VendorContract],
         start_date: date,
         end_date: date,
-        entity: Optional[str] = None
+        entity: Optional[str] = None,
+        payment_overrides: Optional[List[Dict]] = None
     ) -> List[ExpenseEvent]:
         """
         Calculate all vendor expense events.
@@ -117,11 +118,20 @@ class ExpenseScheduler:
             start_date: Projection start date
             end_date: Projection end date
             entity: Filter by entity (optional)
+            payment_overrides: List of payment overrides to apply (optional)
 
         Returns:
             List of vendor expense events
         """
         events = []
+
+        # Build override lookup: (contract_id, original_date) -> override
+        override_lookup = {}
+        if payment_overrides:
+            for override in payment_overrides:
+                if override.get('override_type') == 'vendor':
+                    key = (override['contract_id'], override['original_date'])
+                    override_lookup[key] = override
 
         for contract in contracts:
             # Skip inactive contracts
@@ -136,6 +146,22 @@ class ExpenseScheduler:
             payment_dates = self.get_vendor_payment_dates(contract, start_date, end_date)
 
             for payment_date in payment_dates:
+                original_date = payment_date
+
+                # Check for payment override
+                override = override_lookup.get((contract.id, original_date))
+                if override:
+                    if override['action'] == 'skip':
+                        # Skip this payment entirely
+                        continue
+                    elif override['action'] == 'move' and override.get('new_date'):
+                        # Move payment to new date
+                        payment_date = override['new_date']
+
+                # Only include if payment falls within projection period (after potential override)
+                if not (start_date <= payment_date <= end_date):
+                    continue
+
                 # Use vendor amount and entity directly
                 event_amount = contract.amount
                 event_entity = contract.entity
@@ -159,7 +185,8 @@ class ExpenseScheduler:
         vendor_contracts: List[VendorContract],
         start_date: date,
         end_date: date,
-        entity: str
+        entity: str,
+        payment_overrides: Optional[List[Dict]] = None
     ) -> List[ExpenseEvent]:
         """
         Calculate ALL expense events from vendor contracts.
@@ -169,6 +196,7 @@ class ExpenseScheduler:
             start_date: Projection start date
             end_date: Projection end date
             entity: Entity for expenses
+            payment_overrides: List of payment overrides to apply (optional)
 
         Returns:
             List of all expense events (sorted by date, then priority)
@@ -176,7 +204,9 @@ class ExpenseScheduler:
         events = []
 
         # Add vendor events (includes payroll vendors)
-        vendor_events = self.calculate_vendor_events(vendor_contracts, start_date, end_date, entity)
+        vendor_events = self.calculate_vendor_events(
+            vendor_contracts, start_date, end_date, entity, payment_overrides
+        )
         events.extend(vendor_events)
 
         # Sort by date, then by priority (lower priority number = higher priority)

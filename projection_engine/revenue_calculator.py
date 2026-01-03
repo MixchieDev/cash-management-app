@@ -16,6 +16,7 @@ from config.settings import (
     REALISTIC_PAYMENT_DELAY_DAYS
 )
 from database.models import CustomerContract
+from database.queries import get_payment_overrides
 
 
 @dataclass
@@ -161,6 +162,15 @@ class RevenueCalculator:
         """
         events = []
 
+        # Load payment overrides for customer payments
+        overrides = get_payment_overrides(override_type='customer')
+
+        # Create a lookup dict: (customer_id, original_date) -> override
+        override_lookup = {}
+        for override in overrides:
+            key = (override['contract_id'], override['original_date'])
+            override_lookup[key] = override
+
         for contract in contracts:
             # Skip inactive contracts
             if contract.status != 'Active':
@@ -178,6 +188,19 @@ class RevenueCalculator:
                     invoice_date,
                     contract.payment_terms_days
                 )
+
+                # Check for payment override
+                override_key = (contract.id, payment_date)
+                override = override_lookup.get(override_key)
+
+                if override:
+                    # Override found - apply it
+                    if override['action'] == 'skip':
+                        # Skip this payment entirely
+                        continue
+                    elif override['action'] == 'move' and override['new_date']:
+                        # Move payment to new date
+                        payment_date = override['new_date']
 
                 # Only include if payment falls within projection period
                 if start_date <= payment_date <= end_date:

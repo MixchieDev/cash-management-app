@@ -24,6 +24,8 @@ from database.queries import (
 from projection_engine.revenue_calculator import RevenueCalculator
 from projection_engine.expense_scheduler import ExpenseScheduler
 from utils.currency_formatter import format_currency
+from dashboard.components.styling import load_css, page_header, entity_badge, empty_state
+from dashboard.theme import COLORS
 
 # ═══════════════════════════════════════════════════════════════════
 # PAGE SETUP
@@ -34,10 +36,10 @@ st.set_page_config(
     layout="wide"
 )
 
+load_css()
 require_auth()
 
-st.title("📅 Payment Overrides")
-st.caption("Adjust individual payment dates without changing the recurring schedule")
+page_header("Payment Overrides", "Adjust individual payment dates without changing the recurring schedule")
 
 # ═══════════════════════════════════════════════════════════════════
 # FILTERS
@@ -258,6 +260,7 @@ with st.expander("➕ Add New Override", expanded=False):
 # ═══════════════════════════════════════════════════════════════════
 # ACTIVE OVERRIDES LIST
 # ═══════════════════════════════════════════════════════════════════
+st.markdown("<div style='height: 16px'></div>", unsafe_allow_html=True)
 st.markdown("### Active Overrides")
 
 # Build query filters
@@ -272,9 +275,13 @@ overrides = get_payment_overrides(
 )
 
 if not overrides:
-    st.info("No payment overrides found. Create one using the form above.")
+    empty_state(
+        "No payment overrides yet",
+        "Click 'Add New Override' above to adjust a payment date",
+        "📅"
+    )
 else:
-    # Group by type for display
+    # Display overrides with styled cards
     for override in overrides:
         # Get contract details
         if override['override_type'] == 'customer':
@@ -286,36 +293,81 @@ else:
             contract_name = contract['vendor_name'] if contract else f"Vendor #{override['contract_id']}"
             icon = "🏢"
 
-        # Build display
-        with st.container():
-            col1, col2, col3 = st.columns([3, 2, 1])
+        # Entity badge styling
+        entity_bg = COLORS['yahshua_light'] if override['entity'] == 'YAHSHUA' else COLORS['abba_light']
+        entity_color = '#2563EB' if override['entity'] == 'YAHSHUA' else '#7C3AED'
 
-            with col1:
-                st.markdown(f"**{icon} {contract_name}** ({override['entity']})")
+        # Date display
+        if override['action'] == 'move':
+            date_html = f'''
+                <span style="color: {COLORS['text_secondary']};">
+                    {override['original_date'].strftime('%b %d, %Y')}
+                </span>
+                <span style="color: {COLORS['text_muted']}; padding: 0 8px;">→</span>
+                <span style="color: {COLORS['text_primary']}; font-weight: 500;">
+                    {override['new_date'].strftime('%b %d, %Y')}
+                </span>
+            '''
+        else:
+            date_html = f'''
+                <span style="color: {COLORS['danger']}; text-decoration: line-through;">
+                    {override['original_date'].strftime('%b %d, %Y')}
+                </span>
+                <span style="color: {COLORS['danger']}; font-weight: 500; margin-left: 8px;">
+                    SKIPPED
+                </span>
+            '''
 
-                if override['action'] == 'move':
-                    st.caption(
-                        f"📅 {override['original_date'].strftime('%b %d, %Y')} → "
-                        f"**{override['new_date'].strftime('%b %d, %Y')}**"
-                    )
+        # Reason display
+        reason_html = f'''
+            <span style="color: {COLORS['text_muted']}; font-style: italic;">
+                {override['reason'] if override['reason'] else 'No reason provided'}
+            </span>
+        '''
+
+        # Render styled card
+        col1, col2, col3 = st.columns([4, 3, 1])
+
+        with col1:
+            st.markdown(f'''
+                <div style="margin-bottom: 4px;">
+                    <span style="font-size: 14px; font-weight: 500; color: {COLORS['text_primary']};">
+                        {icon} {contract_name}
+                    </span>
+                    <span style="
+                        background: {entity_bg};
+                        color: {entity_color};
+                        padding: 2px 8px;
+                        border-radius: 4px;
+                        font-size: 12px;
+                        font-weight: 500;
+                        margin-left: 8px;
+                    ">{override['entity']}</span>
+                </div>
+                <div style="font-size: 14px; margin-top: 4px;">
+                    📅 {date_html}
+                </div>
+            ''', unsafe_allow_html=True)
+
+        with col2:
+            st.markdown(f'''
+                <div style="font-size: 14px; padding-top: 8px;">
+                    {reason_html}
+                </div>
+            ''', unsafe_allow_html=True)
+
+        with col3:
+            if st.button("Delete", key=f"delete_{override['id']}", type="secondary"):
+                if delete_payment_override(override['id']):
+                    st.success("Override deleted")
+                    st.rerun()
                 else:
-                    st.caption(f"❌ {override['original_date'].strftime('%b %d, %Y')} - **SKIPPED**")
+                    st.error("Failed to delete override")
 
-            with col2:
-                if override['reason']:
-                    st.caption(f"💬 {override['reason']}")
-                else:
-                    st.caption("No reason provided")
-
-            with col3:
-                if st.button("🗑️ Delete", key=f"delete_{override['id']}"):
-                    if delete_payment_override(override['id']):
-                        st.success("Override deleted")
-                        st.rerun()
-                    else:
-                        st.error("Failed to delete override")
-
-            st.markdown("---")
+        # Divider between items
+        st.markdown(f'''
+            <div style="border-bottom: 1px solid {COLORS['border']}; margin: 16px 0;"></div>
+        ''', unsafe_allow_html=True)
 
 # ═══════════════════════════════════════════════════════════════════
 # HELP TEXT

@@ -14,6 +14,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from auth.authentication import require_auth
 from utils.currency_formatter import format_currency
+from dashboard.components.styling import load_css, page_header
+from dashboard.theme import COLORS, get_chart_layout, CHART_COLORS
 
 # ═══════════════════════════════════════════════════════════════════
 # PAGE SETUP
@@ -24,9 +26,10 @@ st.set_page_config(
     layout="wide"
 )
 
+load_css()
 require_auth()
 
-st.title("📊 Scenario Modeling")
+page_header("Scenario Modeling", "Create and run what-if scenarios")
 
 # Permission check
 if st.session_state.get('user_role') != 'admin':

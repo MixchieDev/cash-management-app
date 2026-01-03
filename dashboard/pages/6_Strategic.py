@@ -14,6 +14,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from auth.authentication import require_auth
 from utils.currency_formatter import format_currency
 from database.queries import get_total_mrr
+from dashboard.components.styling import load_css, page_header, kpi_card
+from dashboard.theme import COLORS
 
 # ═══════════════════════════════════════════════════════════════════
 # PAGE SETUP
@@ -24,9 +26,10 @@ st.set_page_config(
     layout="wide"
 )
 
+load_css()
 require_auth()
 
-st.title("🎯 Strategic Planning")
+page_header("Strategic Planning", "Path to ₱250M revenue and growth planning")
 
 # ═══════════════════════════════════════════════════════════════════
 # PATH TO ₱250M

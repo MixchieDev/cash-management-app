@@ -24,6 +24,14 @@ st.set_page_config(
 )
 
 # ═══════════════════════════════════════════════════════════════════
+# LOAD CUSTOM CSS
+# ═══════════════════════════════════════════════════════════════════
+css_path = Path(__file__).parent / "styles.css"
+if css_path.exists():
+    with open(css_path) as f:
+        st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
+
+# ═══════════════════════════════════════════════════════════════════
 # INITIALIZE SESSION STATE
 # ═══════════════════════════════════════════════════════════════════
 init_session_state()

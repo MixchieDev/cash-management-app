@@ -19,6 +19,8 @@ from database.queries import get_all_scenarios, get_scenario_by_id
 from projection_engine.cash_projector import CashProjector, ProjectionDataPoint
 from scenario_engine.scenario_calculator import ScenarioCalculator
 from utils.currency_formatter import format_currency
+from dashboard.components.styling import load_css, page_header
+from dashboard.theme import COLORS, get_chart_layout, CHART_COLORS
 
 # ═══════════════════════════════════════════════════════════════════
 # HELPER FUNCTIONS
@@ -351,17 +353,26 @@ st.set_page_config(
     layout="wide"
 )
 
+load_css()
 require_auth()
 
-st.title("📊 Scenario Comparison")
+page_header("Scenario Comparison", "Compare multiple scenarios side-by-side")
 
-st.info("""
-**Compare Multiple Scenarios**
-
-Select 1-3 saved scenarios to see their **combined impact** on cash flow.
-When multiple scenarios are selected, all changes are **stacked together** to show the cumulative effect.
-View interactive charts comparing Baseline (no changes) vs Combined Scenario.
-""")
+st.markdown(f'''
+<div style="
+    background: {COLORS['info_light']};
+    border-left: 4px solid {COLORS['info']};
+    padding: 12px 16px;
+    border-radius: 0 6px 6px 0;
+    font-size: 14px;
+    color: {COLORS['text_primary']};
+    margin: 16px 0;
+">
+    <strong>Compare Multiple Scenarios</strong><br>
+    Select 1-3 saved scenarios to see their combined impact on cash flow.
+    When multiple scenarios are selected, all changes are stacked together to show the cumulative effect.
+</div>
+''', unsafe_allow_html=True)
 
 # ═══════════════════════════════════════════════════════════════════
 # LIST SAVED SCENARIOS

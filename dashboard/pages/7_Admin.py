@@ -10,6 +10,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from auth.authentication import require_auth
+from dashboard.components.styling import load_css, page_header
+from dashboard.theme import COLORS
 
 # ═══════════════════════════════════════════════════════════════════
 # PAGE SETUP
@@ -20,16 +22,26 @@ st.set_page_config(
     layout="wide"
 )
 
+load_css()
 require_auth(required_role='admin')
 
-st.title("👥 User Administration")
+page_header("User Administration", "Manage system users and permissions")
 
-st.info("""
-**User Management (Phase 1 - Simplified)**
-
-Current user system uses hardcoded credentials for simplicity.
-Full user management with database storage coming in Phase 2.
-""")
+st.markdown(f'''
+<div style="
+    background: {COLORS['info_light']};
+    border-left: 4px solid {COLORS['info']};
+    padding: 12px 16px;
+    border-radius: 0 6px 6px 0;
+    font-size: 14px;
+    color: {COLORS['text_primary']};
+    margin: 16px 0;
+">
+    <strong>User Management (Phase 1 - Simplified)</strong><br>
+    Current user system uses hardcoded credentials for simplicity.
+    Full user management with database storage coming in Phase 2.
+</div>
+''', unsafe_allow_html=True)
 
 # ═══════════════════════════════════════════════════════════════════
 # CURRENT USERS

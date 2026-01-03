@@ -18,6 +18,8 @@ from projection_engine.cash_projector import CashProjector, ProjectionResult
 from database.queries import get_latest_bank_balance, get_consolidated_bank_balance, get_total_mrr, get_total_monthly_expenses
 from utils.currency_formatter import format_currency
 from dashboard.components.transaction_modal import show_transaction_breakdown_modal
+from dashboard.components.styling import load_css, page_header, kpi_card, metric_row
+from dashboard.theme import COLORS, get_chart_layout, CHART_COLORS
 from utils.period_helpers import calculate_period_range
 
 # ═══════════════════════════════════════════════════════════════════
@@ -29,35 +31,34 @@ st.set_page_config(
     layout="wide"
 )
 
+load_css()
 require_auth()
 
-st.title("₱ JESUS Company - Strategic Cash Management")
+# Page header with entity selector
+col_title, col_entity = st.columns([3, 1])
+with col_title:
+    page_header("Dashboard", "Strategic cash flow management and projections")
 
 # ═══════════════════════════════════════════════════════════════════
 # HEADER CONTROLS
 # ═══════════════════════════════════════════════════════════════════
-col1, col2, col3 = st.columns([2, 2, 1])
-
-with col1:
+with col_entity:
     entity = st.selectbox(
         "Entity",
         ["YAHSHUA", "ABBA", "Consolidated"],
         key="entity_selector",
-        help="Select entity to view projections"
+        label_visibility="collapsed"
     )
 
-with col2:
+col1, col2 = st.columns([3, 1])
+with col1:
     scenario_type = st.radio(
-        "Projection Scenario",
+        "Scenario",
         ["Optimistic", "Realistic"],
         horizontal=True,
         key="scenario_type",
         help="Optimistic: On-time payments | Realistic: 10-day delay"
     )
-
-with col3:
-    st.markdown(f"**{st.session_state.get('name', 'User')}**")
-    st.caption(f"@{st.session_state.get('username', 'user')}")
 
 # ═══════════════════════════════════════════════════════════════════
 # GET BANK BALANCE
@@ -123,51 +124,52 @@ else:
 # ═══════════════════════════════════════════════════════════════════
 # KPI CARDS
 # ═══════════════════════════════════════════════════════════════════
-st.markdown("---")
+st.markdown("<div style='height: 24px'></div>", unsafe_allow_html=True)
 
-col1, col2, col3, col4, col5, col6 = st.columns(6)
+delta_30 = day_30_cash - current_cash
+delta_60 = day_60_cash - current_cash
+delta_90 = day_90_cash - current_cash
+
+col1, col2, col3, col4, col5 = st.columns(5)
 
 with col1:
-    st.metric(
-        "Current Cash (Actual)",
+    kpi_card(
+        "Current Cash",
         format_currency(current_cash),
-        help=f"Bank balance as of {balance_date}"
+        f"as of {balance_date}"
     )
-    st.caption(f"as of {balance_date}")
 
 with col2:
-    delta_30 = day_30_cash - current_cash
-    st.metric(
+    kpi_card(
         "30-Day Projection",
         format_currency(day_30_cash),
-        delta=format_currency(delta_30),
-        delta_color="normal" if delta_30 >= 0 else "inverse"
+        f"{'+' if delta_30 >= 0 else ''}{format_currency(delta_30)}",
+        change_positive=delta_30 >= 0
     )
 
 with col3:
-    delta_60 = day_60_cash - current_cash
-    st.metric(
+    kpi_card(
         "60-Day Projection",
         format_currency(day_60_cash),
-        delta=format_currency(delta_60),
-        delta_color="normal" if delta_60 >= 0 else "inverse"
+        f"{'+' if delta_60 >= 0 else ''}{format_currency(delta_60)}",
+        change_positive=delta_60 >= 0
+    )
+
+with col4:
+    kpi_card(
+        "90-Day Projection",
+        format_currency(day_90_cash),
+        f"{'+' if delta_90 >= 0 else ''}{format_currency(delta_90)}",
+        change_positive=delta_90 >= 0
     )
 
 with col5:
-    delta_90 = day_90_cash - current_cash
-    st.metric(
-        "90-Day Projection",
-        format_currency(day_90_cash),
-        delta=format_currency(delta_90),
-        delta_color="normal" if delta_90 >= 0 else "inverse"
-    )
-
-with col6:
-    runway_color = "green" if cash_runway_months > 12 else "orange" if cash_runway_months > 6 else "red"
-    st.metric(
+    runway_status = "Healthy" if cash_runway_months > 12 else "Caution" if cash_runway_months > 6 else "Critical"
+    kpi_card(
         "Cash Runway",
-        f"{cash_runway_months} months",
-        help="Months until cash reaches ₱0 at current burn rate"
+        f"{cash_runway_months} mo",
+        runway_status,
+        change_positive=cash_runway_months > 6
     )
 
 # ═══════════════════════════════════════════════════════════════════
@@ -263,42 +265,49 @@ if projection_data:
 
     fig = go.Figure()
 
-    # Cash position line
+    # Cash position line with theme colors
     fig.add_trace(go.Scatter(
         x=dates,
         y=cash_amounts,
         mode='lines+markers',
         name='Cash Position',
-        line=dict(color='#2E86AB', width=3),
-        marker=dict(size=6),
+        line=dict(color=COLORS['chart_blue'], width=2),
+        marker=dict(size=6, color=COLORS['chart_blue']),
         hovertemplate='<b>%{x}</b><br>Cash: ₱%{y:,.2f}<extra></extra>'
     ))
 
     # Add red zone for negative cash
     fig.add_hrect(
         y0=-10000000, y1=0,
-        fillcolor="red", opacity=0.1,
+        fillcolor=COLORS['danger'],
+        opacity=0.08,
         line_width=0,
         annotation_text="Negative Cash Zone",
-        annotation_position="top left"
+        annotation_position="top left",
+        annotation_font_color=COLORS['text_muted']
     )
 
     # Add warning zone
     fig.add_hrect(
         y0=0, y1=500000,
-        fillcolor="orange", opacity=0.1,
+        fillcolor=COLORS['warning'],
+        opacity=0.08,
         line_width=0
     )
 
-    fig.update_layout(
-        title=f"Cash Flow Projection - {entity} ({scenario_type})",
-        xaxis_title="Date",
-        yaxis_title="Cash Position (₱)",
-        hovermode='x unified',
-        height=500,
-        yaxis=dict(tickformat=',.0f', tickprefix='₱'),
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
-    )
+    # Apply theme layout
+    layout = get_chart_layout(height=450)
+    layout.update({
+        'xaxis_title': None,
+        'yaxis_title': None,
+        'hovermode': 'x unified',
+        'yaxis': {
+            **layout['yaxis'],
+            'tickformat': ',.0f',
+            'tickprefix': '₱',
+        },
+    })
+    fig.update_layout(**layout)
 
     # Render chart with click event handling
     selected = st.plotly_chart(

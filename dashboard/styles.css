@@ -1,0 +1,573 @@
+/*
+ * Mercury/Linear-inspired styles for JESUS Company Cash Management Dashboard
+ * Clean, minimal, professional design system
+ */
+
+/* ═══════════════════════════════════════════════════════════════════
+   CSS VARIABLES
+   ═══════════════════════════════════════════════════════════════════ */
+
+:root {
+    /* Base colors */
+    --color-background: #FFFFFF;
+    --color-surface: #F9FAFB;
+    --color-border: #E5E7EB;
+    --color-border-light: #F3F4F6;
+
+    /* Text colors */
+    --color-text-primary: #111827;
+    --color-text-secondary: #6B7280;
+    --color-text-muted: #9CA3AF;
+
+    /* Accent colors */
+    --color-primary: #3B82F6;
+    --color-primary-hover: #2563EB;
+    --color-primary-light: rgba(59, 130, 246, 0.1);
+
+    /* Status colors */
+    --color-success: #10B981;
+    --color-success-light: rgba(16, 185, 129, 0.1);
+    --color-warning: #F59E0B;
+    --color-warning-light: rgba(245, 158, 11, 0.1);
+    --color-danger: #EF4444;
+    --color-danger-light: rgba(239, 68, 68, 0.1);
+
+    /* Entity colors */
+    --color-yahshua: #3B82F6;
+    --color-yahshua-light: rgba(59, 130, 246, 0.1);
+    --color-abba: #8B5CF6;
+    --color-abba-light: rgba(139, 92, 246, 0.1);
+
+    /* Typography */
+    --font-primary: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --font-mono: "SF Mono", "Fira Code", "JetBrains Mono", Consolas, monospace;
+
+    /* Spacing */
+    --spacing-xs: 4px;
+    --spacing-sm: 8px;
+    --spacing-md: 16px;
+    --spacing-lg: 24px;
+    --spacing-xl: 32px;
+    --spacing-2xl: 48px;
+
+    /* Border radius */
+    --radius-sm: 4px;
+    --radius-md: 6px;
+    --radius-lg: 8px;
+    --radius-xl: 12px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   GLOBAL STYLES
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* Hide Streamlit branding */
+#MainMenu {visibility: hidden;}
+footer {visibility: hidden;}
+header {visibility: hidden;}
+
+/* Main container */
+.main .block-container {
+    padding-top: 2rem;
+    padding-bottom: 2rem;
+    max-width: 1200px;
+}
+
+/* Sidebar styling */
+[data-testid="stSidebar"] {
+    background-color: var(--color-surface);
+    border-right: 1px solid var(--color-border);
+}
+
+[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p {
+    font-size: 14px;
+    color: var(--color-text-secondary);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   TYPOGRAPHY
+   ═══════════════════════════════════════════════════════════════════ */
+
+h1 {
+    font-size: 24px !important;
+    font-weight: 600 !important;
+    color: var(--color-text-primary) !important;
+    margin-bottom: 8px !important;
+}
+
+h2 {
+    font-size: 20px !important;
+    font-weight: 600 !important;
+    color: var(--color-text-primary) !important;
+    margin-bottom: 16px !important;
+}
+
+h3 {
+    font-size: 16px !important;
+    font-weight: 600 !important;
+    color: var(--color-text-primary) !important;
+    margin-bottom: 12px !important;
+}
+
+p, .stMarkdown {
+    font-size: 14px;
+    color: var(--color-text-secondary);
+    line-height: 1.6;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   KPI CARDS
+   ═══════════════════════════════════════════════════════════════════ */
+
+.kpi-card {
+    background: var(--color-background);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: 20px 24px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.kpi-label {
+    font-size: 12px;
+    text-transform: uppercase;
+    color: var(--color-text-secondary);
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+}
+
+.kpi-value {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--color-text-primary);
+    font-family: var(--font-mono);
+}
+
+.kpi-change-positive {
+    font-size: 12px;
+    color: var(--color-success);
+    margin-top: 4px;
+}
+
+.kpi-change-negative {
+    font-size: 12px;
+    color: var(--color-danger);
+    margin-top: 4px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   SECTION CARDS
+   ═══════════════════════════════════════════════════════════════════ */
+
+.section-card {
+    background: var(--color-background);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-xl);
+    padding: var(--spacing-lg);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    margin-bottom: var(--spacing-lg);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   BUTTONS
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* Primary button */
+.stButton > button[kind="primary"],
+.stButton > button[data-testid="baseButton-primary"] {
+    background-color: var(--color-primary) !important;
+    color: white !important;
+    border: none !important;
+    border-radius: var(--radius-md) !important;
+    padding: 8px 16px !important;
+    font-size: 14px !important;
+    font-weight: 500 !important;
+    transition: background-color 0.15s ease !important;
+}
+
+.stButton > button[kind="primary"]:hover,
+.stButton > button[data-testid="baseButton-primary"]:hover {
+    background-color: var(--color-primary-hover) !important;
+}
+
+/* Secondary button */
+.stButton > button[kind="secondary"],
+.stButton > button[data-testid="baseButton-secondary"] {
+    background-color: var(--color-background) !important;
+    color: var(--color-text-primary) !important;
+    border: 1px solid var(--color-border) !important;
+    border-radius: var(--radius-md) !important;
+    padding: 8px 16px !important;
+    font-size: 14px !important;
+    font-weight: 500 !important;
+}
+
+.stButton > button[kind="secondary"]:hover,
+.stButton > button[data-testid="baseButton-secondary"]:hover {
+    background-color: var(--color-surface) !important;
+}
+
+/* Delete/danger button style */
+.delete-btn {
+    background: transparent !important;
+    color: var(--color-text-muted) !important;
+    border: none !important;
+}
+
+.delete-btn:hover {
+    color: var(--color-danger) !important;
+    background: var(--color-danger-light) !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   FORM INPUTS
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* Text inputs */
+.stTextInput > div > div > input,
+.stTextArea > div > div > textarea,
+.stNumberInput > div > div > input {
+    border: 1px solid var(--color-border) !important;
+    border-radius: var(--radius-md) !important;
+    padding: 8px 12px !important;
+    font-size: 14px !important;
+}
+
+.stTextInput > div > div > input:focus,
+.stTextArea > div > div > textarea:focus,
+.stNumberInput > div > div > input:focus {
+    border-color: var(--color-primary) !important;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2) !important;
+}
+
+/* Select boxes */
+.stSelectbox > div > div {
+    border: 1px solid var(--color-border) !important;
+    border-radius: var(--radius-md) !important;
+}
+
+.stSelectbox > div > div:focus-within {
+    border-color: var(--color-primary) !important;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2) !important;
+}
+
+/* Labels */
+.stTextInput > label,
+.stTextArea > label,
+.stSelectbox > label,
+.stNumberInput > label,
+.stDateInput > label {
+    font-size: 14px !important;
+    font-weight: 500 !important;
+    color: var(--color-text-primary) !important;
+    margin-bottom: 4px !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   TABLES
+   ═══════════════════════════════════════════════════════════════════ */
+
+.stDataFrame {
+    border: 1px solid var(--color-border) !important;
+    border-radius: var(--radius-lg) !important;
+    overflow: hidden;
+}
+
+.stDataFrame thead th {
+    background: var(--color-surface) !important;
+    font-size: 12px !important;
+    text-transform: uppercase !important;
+    color: var(--color-text-secondary) !important;
+    font-weight: 500 !important;
+    padding: 12px 16px !important;
+}
+
+.stDataFrame tbody td {
+    font-size: 14px !important;
+    color: var(--color-text-primary) !important;
+    padding: 12px 16px !important;
+    border-bottom: 1px solid var(--color-border) !important;
+}
+
+.stDataFrame tbody tr:hover {
+    background: var(--color-surface) !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   ALERTS
+   ═══════════════════════════════════════════════════════════════════ */
+
+.stAlert {
+    border-radius: 0 var(--radius-md) var(--radius-md) 0 !important;
+    border-left-width: 4px !important;
+}
+
+/* Info alert */
+[data-testid="stAlert"][data-baseweb="notification"] {
+    background: var(--color-primary-light) !important;
+    border-left-color: var(--color-primary) !important;
+}
+
+/* Success alert */
+.element-container:has(.stSuccess) .stAlert {
+    background: var(--color-success-light) !important;
+    border-left-color: var(--color-success) !important;
+}
+
+/* Warning alert */
+.element-container:has(.stWarning) .stAlert {
+    background: var(--color-warning-light) !important;
+    border-left-color: var(--color-warning) !important;
+}
+
+/* Error alert */
+.element-container:has(.stError) .stAlert {
+    background: var(--color-danger-light) !important;
+    border-left-color: var(--color-danger) !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   EXPANDERS
+   ═══════════════════════════════════════════════════════════════════ */
+
+.streamlit-expanderHeader {
+    background: var(--color-surface) !important;
+    border: 1px solid var(--color-border) !important;
+    border-radius: var(--radius-lg) !important;
+    font-size: 14px !important;
+    font-weight: 500 !important;
+    color: var(--color-text-primary) !important;
+}
+
+.streamlit-expanderContent {
+    border: 1px solid var(--color-border) !important;
+    border-top: none !important;
+    border-radius: 0 0 var(--radius-lg) var(--radius-lg) !important;
+    padding: var(--spacing-md) !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   TABS
+   ═══════════════════════════════════════════════════════════════════ */
+
+.stTabs [data-baseweb="tab-list"] {
+    gap: 0 !important;
+    border-bottom: 1px solid var(--color-border) !important;
+}
+
+.stTabs [data-baseweb="tab"] {
+    font-size: 14px !important;
+    font-weight: 500 !important;
+    color: var(--color-text-secondary) !important;
+    padding: 12px 24px !important;
+    border-bottom: 2px solid transparent !important;
+}
+
+.stTabs [data-baseweb="tab"][aria-selected="true"] {
+    color: var(--color-primary) !important;
+    border-bottom-color: var(--color-primary) !important;
+}
+
+.stTabs [data-baseweb="tab"]:hover {
+    color: var(--color-text-primary) !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   METRICS
+   ═══════════════════════════════════════════════════════════════════ */
+
+[data-testid="stMetricValue"] {
+    font-size: 28px !important;
+    font-weight: 700 !important;
+    color: var(--color-text-primary) !important;
+    font-family: var(--font-mono) !important;
+}
+
+[data-testid="stMetricLabel"] {
+    font-size: 12px !important;
+    text-transform: uppercase !important;
+    color: var(--color-text-secondary) !important;
+    letter-spacing: 0.5px !important;
+}
+
+[data-testid="stMetricDelta"] {
+    font-size: 12px !important;
+}
+
+[data-testid="stMetricDelta"][data-testid-delta="positive"] {
+    color: var(--color-success) !important;
+}
+
+[data-testid="stMetricDelta"][data-testid-delta="negative"] {
+    color: var(--color-danger) !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   ENTITY BADGES
+   ═══════════════════════════════════════════════════════════════════ */
+
+.entity-badge-yahshua {
+    background: var(--color-yahshua-light);
+    color: #2563EB;
+    padding: 2px 8px;
+    border-radius: var(--radius-sm);
+    font-size: 12px;
+    font-weight: 500;
+    display: inline-block;
+}
+
+.entity-badge-abba {
+    background: var(--color-abba-light);
+    color: #7C3AED;
+    padding: 2px 8px;
+    border-radius: var(--radius-sm);
+    font-size: 12px;
+    font-weight: 500;
+    display: inline-block;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   OVERRIDE LIST ITEMS
+   ═══════════════════════════════════════════════════════════════════ */
+
+.override-card {
+    background: var(--color-background);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-md);
+    margin-bottom: var(--spacing-sm);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.override-card:hover {
+    border-color: var(--color-border);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.override-info {
+    flex: 1;
+}
+
+.override-name {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--color-text-primary);
+}
+
+.override-date {
+    font-size: 14px;
+    color: var(--color-text-secondary);
+    margin-top: 4px;
+}
+
+.override-reason {
+    font-size: 14px;
+    color: var(--color-text-muted);
+    font-style: italic;
+}
+
+.date-arrow {
+    color: var(--color-text-muted);
+    padding: 0 8px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   EMPTY STATE
+   ═══════════════════════════════════════════════════════════════════ */
+
+.empty-state {
+    text-align: center;
+    padding: var(--spacing-2xl) var(--spacing-lg);
+    color: var(--color-text-muted);
+}
+
+.empty-state-icon {
+    font-size: 48px;
+    margin-bottom: var(--spacing-md);
+    opacity: 0.5;
+}
+
+.empty-state-title {
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--color-text-secondary);
+    margin-bottom: var(--spacing-sm);
+}
+
+.empty-state-description {
+    font-size: 14px;
+    color: var(--color-text-muted);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   DIVIDERS
+   ═══════════════════════════════════════════════════════════════════ */
+
+hr {
+    border: none !important;
+    border-top: 1px solid var(--color-border) !important;
+    margin: var(--spacing-lg) 0 !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   SCROLLBAR
+   ═══════════════════════════════════════════════════════════════════ */
+
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--color-surface);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--color-border);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--color-text-muted);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   RADIO BUTTONS
+   ═══════════════════════════════════════════════════════════════════ */
+
+.stRadio > div {
+    gap: var(--spacing-md) !important;
+}
+
+.stRadio [data-testid="stMarkdownContainer"] p {
+    font-size: 14px !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   DATE INPUT
+   ═══════════════════════════════════════════════════════════════════ */
+
+.stDateInput > div > div {
+    border: 1px solid var(--color-border) !important;
+    border-radius: var(--radius-md) !important;
+}
+
+.stDateInput > div > div:focus-within {
+    border-color: var(--color-primary) !important;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2) !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   PROGRESS BAR
+   ═══════════════════════════════════════════════════════════════════ */
+
+.stProgress > div > div > div {
+    background: var(--color-primary) !important;
+    border-radius: var(--radius-sm) !important;
+}
+
+.stProgress > div > div {
+    background: var(--color-surface) !important;
+    border-radius: var(--radius-sm) !important;
+}

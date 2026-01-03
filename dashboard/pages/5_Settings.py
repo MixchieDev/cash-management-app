@@ -23,6 +23,8 @@ from config.settings import (
     INVOICE_DAYS_BEFORE_MONTH
 )
 from utils.currency_formatter import format_currency
+from dashboard.components.styling import load_css, page_header
+from dashboard.theme import COLORS
 
 # ═══════════════════════════════════════════════════════════════════
 # PAGE SETUP
@@ -33,16 +35,26 @@ st.set_page_config(
     layout="wide"
 )
 
+load_css()
 require_auth()
 
-st.title("⚙️ System Configuration")
+page_header("System Configuration", "View system settings and configuration")
 
-st.info("""
-📋 **Configuration Management**
-
-These values are configured in the backend. To change them, edit `config/constants.py`
-and restart the application.
-""")
+st.markdown(f'''
+<div style="
+    background: {COLORS['info_light']};
+    border-left: 4px solid {COLORS['info']};
+    padding: 12px 16px;
+    border-radius: 0 6px 6px 0;
+    font-size: 14px;
+    color: {COLORS['text_primary']};
+    margin: 16px 0;
+">
+    <strong>Configuration Management</strong><br>
+    These values are configured in the backend. To change them, edit <code>config/constants.py</code>
+    and restart the application.
+</div>
+''', unsafe_allow_html=True)
 
 # ═══════════════════════════════════════════════════════════════════
 # ENTITY MAPPING

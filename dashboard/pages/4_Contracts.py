@@ -16,6 +16,8 @@ from config.settings import SPREADSHEET_ID
 from config.constants import PAYMENT_PLAN_FREQUENCIES
 from database.queries import get_customers, get_vendors
 from utils.currency_formatter import format_currency
+from dashboard.components.styling import load_css, page_header, kpi_card
+from dashboard.theme import COLORS
 
 # ═══════════════════════════════════════════════════════════════════
 # PAGE SETUP
@@ -26,9 +28,10 @@ st.set_page_config(
     layout="wide"
 )
 
+load_css()
 require_auth()
 
-st.title("📄 Contract Management")
+page_header("Contract Management", "View and manage customer and vendor contracts")
 
 # ═══════════════════════════════════════════════════════════════════
 # DATA MANAGEMENT INFO (PHASE 1)

@@ -194,14 +194,34 @@ try:
     vendors = get_vendors(entity=entity_filter if entity_filter != "All" else None, status='Active')
 
     if vendors:
+        # Monthly equivalent multipliers (to convert any frequency to monthly)
+        monthly_multipliers = {
+            'One-time': None,  # Can't convert one-time to monthly
+            'Daily': Decimal('30'),  # 30 days per month
+            'Weekly': Decimal('4.33'),  # 52 weeks / 12 months
+            'Bi-weekly': Decimal('2.17'),  # 26 bi-weeks / 12 months
+            'Monthly': Decimal('1'),
+            'Quarterly': Decimal('1') / Decimal('3'),  # 1/3 of quarterly = monthly
+            'Annual': Decimal('1') / Decimal('12'),  # 1/12 of annual = monthly
+        }
+
         # Build display data
         vendor_data = []
         for v in vendors:
+            # Calculate monthly equivalent
+            multiplier = monthly_multipliers.get(v['frequency'])
+            if multiplier is not None:
+                monthly_equiv = v['amount'] * multiplier
+                monthly_equiv_str = format_currency(monthly_equiv)
+            else:
+                monthly_equiv_str = 'One-time'
+
             vendor_data.append({
                 'Vendor': v['vendor_name'],
                 'Category': v['category'],
                 'Amount': format_currency(v['amount']),
                 'Frequency': v['frequency'],
+                'Monthly Equiv.': monthly_equiv_str,
                 'Due Date': v['due_date'].strftime('%b %d') if v['due_date'] else 'N/A',
                 'Start Date': v['start_date'].strftime('%Y-%m-%d') if v.get('start_date') else 'Active',
                 'End Date': v['end_date'].strftime('%Y-%m-%d') if v.get('end_date') else 'Ongoing',

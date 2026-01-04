@@ -10,8 +10,8 @@ from dateutil.relativedelta import relativedelta
 
 from database.db_manager import db_manager
 from database.models import CustomerContract, VendorContract, BankBalance, Projection
-from projection_engine.revenue_calculator import RevenueCalculator
-from projection_engine.expense_scheduler import ExpenseScheduler
+from projection_engine.revenue_calculator import RevenueCalculator, RevenueEvent
+from projection_engine.expense_scheduler import ExpenseScheduler, ExpenseEvent
 
 
 @dataclass
@@ -30,6 +30,54 @@ class ProjectionDataPoint:
     def __post_init__(self):
         """Set is_negative flag."""
         self.is_negative = self.ending_cash < 0
+
+
+@dataclass
+class ProjectionResult:
+    """Detailed projection result with both aggregated data and underlying events."""
+    data_points: List[ProjectionDataPoint]
+    revenue_events: List[RevenueEvent]
+    expense_events: List[ExpenseEvent]
+
+    def get_events_for_period(
+        self,
+        start_date: date,
+        end_date: date
+    ) -> Tuple[List[RevenueEvent], List[ExpenseEvent]]:
+        """
+        Get revenue and expense events for a specific period.
+
+        Args:
+            start_date: Period start date
+            end_date: Period end date
+
+        Returns:
+            Tuple of (revenue_events, expense_events) within the period
+        """
+        period_revenue = [
+            e for e in self.revenue_events
+            if start_date <= e.date <= end_date
+        ]
+        period_expenses = [
+            e for e in self.expense_events
+            if start_date <= e.date <= end_date
+        ]
+        return period_revenue, period_expenses
+
+    def get_events_for_date(
+        self,
+        target_date: date
+    ) -> Tuple[List[RevenueEvent], List[ExpenseEvent]]:
+        """
+        Get revenue and expense events for a specific date.
+
+        Args:
+            target_date: Target date
+
+        Returns:
+            Tuple of (revenue_events, expense_events) on that date
+        """
+        return self.get_events_for_period(target_date, target_date)
 
 
 class CashProjector:
@@ -396,3 +444,199 @@ class CashProjector:
                 session.add(db_projection)
 
         print(f"✓ Saved {len(projection)} projection data points to database")
+
+    def calculate_cash_projection_detailed(
+        self,
+        start_date: date,
+        end_date: date,
+        entity: str,
+        timeframe: str = 'monthly',
+        scenario_type: str = 'realistic',
+        scenario_id: Optional[int] = None
+    ) -> ProjectionResult:
+        """
+        Calculate cash projection with detailed event data.
+
+        Returns both the aggregated projection data points AND the
+        underlying revenue/expense events that contributed to them.
+        This enables drill-down into specific periods.
+
+        Args:
+            start_date: Projection start date
+            end_date: Projection end date
+            entity: 'YAHSHUA', 'ABBA', or 'Consolidated'
+            timeframe: 'daily', 'weekly', 'monthly', or 'quarterly'
+            scenario_type: 'optimistic' or 'realistic'
+            scenario_id: Custom scenario to apply (optional)
+
+        Returns:
+            ProjectionResult with data_points and underlying events
+        """
+        # Validate entity (dynamically from database)
+        from config.entity_mapping import get_valid_entities
+        valid_entities = get_valid_entities()
+        if entity not in valid_entities:
+            raise ValueError(f"Invalid entity: {entity}. Must be one of: {valid_entities}")
+
+        # For consolidated, calculate separately and combine
+        if entity == 'Consolidated':
+            return self._calculate_consolidated_projection_detailed(
+                start_date, end_date, timeframe, scenario_type, scenario_id
+            )
+
+        # Get starting cash
+        starting_cash, balance_date = self.get_starting_cash(entity)
+
+        # Get active contracts
+        customer_contracts = self.get_active_customer_contracts(entity)
+        vendor_contracts = self.get_active_vendor_contracts(entity)
+
+        # Initialize calculators
+        revenue_calc = RevenueCalculator(scenario_type=scenario_type)
+        expense_scheduler = ExpenseScheduler()
+
+        # Calculate all revenue and expense events
+        revenue_events = revenue_calc.calculate_revenue_events(
+            customer_contracts, start_date, end_date
+        )
+        expense_events = expense_scheduler.calculate_expense_events(
+            vendor_contracts, start_date, end_date, entity
+        )
+
+        # Generate projection data points
+        projection = []
+        current_cash = starting_cash
+
+        # Generate date range
+        period_dates = self.generate_date_range(start_date, end_date, timeframe)
+
+        # Track period start date
+        period_start = start_date
+
+        for period_end in period_dates:
+            # Calculate inflows for this period
+            inflows = revenue_calc.calculate_total_revenue_by_period(
+                revenue_events, period_start, period_end, entity
+            )
+
+            # Calculate outflows for this period
+            outflows = expense_scheduler.calculate_total_expenses_by_period(
+                expense_events, period_start, period_end, entity
+            )
+
+            # Calculate ending cash
+            ending_cash = current_cash + inflows - outflows
+
+            # Create data point
+            data_point = ProjectionDataPoint(
+                date=period_end,
+                starting_cash=current_cash,
+                inflows=inflows,
+                outflows=outflows,
+                ending_cash=ending_cash,
+                entity=entity,
+                timeframe=timeframe,
+                scenario_type=scenario_type
+            )
+            projection.append(data_point)
+
+            # Update current cash for next period
+            current_cash = ending_cash
+
+            # Update period start for next iteration
+            period_start = period_end + timedelta(days=1)
+
+        return ProjectionResult(
+            data_points=projection,
+            revenue_events=revenue_events,
+            expense_events=expense_events
+        )
+
+    def _calculate_consolidated_projection_detailed(
+        self,
+        start_date: date,
+        end_date: date,
+        timeframe: str,
+        scenario_type: str,
+        scenario_id: Optional[int]
+    ) -> ProjectionResult:
+        """
+        Calculate consolidated detailed projection (ALL active entities combined).
+
+        Args:
+            start_date: Projection start date
+            end_date: Projection end date
+            timeframe: Timeframe
+            scenario_type: Scenario type
+            scenario_id: Scenario ID
+
+        Returns:
+            ProjectionResult with combined data from all entities
+        """
+        # Get all active entity codes from database
+        from database.settings_manager import get_valid_entity_codes
+        entity_codes = get_valid_entity_codes()
+
+        if not entity_codes:
+            raise ValueError("No active entities found in database")
+
+        # Calculate detailed projections for all entities
+        all_revenue_events = []
+        all_expense_events = []
+        entity_projections = {}
+
+        for entity_code in entity_codes:
+            try:
+                result = self.calculate_cash_projection_detailed(
+                    start_date, end_date, entity_code, timeframe, scenario_type, scenario_id
+                )
+                entity_projections[entity_code] = result.data_points
+                all_revenue_events.extend(result.revenue_events)
+                all_expense_events.extend(result.expense_events)
+            except ValueError as e:
+                # Skip entities with no bank balance
+                print(f"Warning: Skipping {entity_code} - {e}")
+                continue
+
+        if not entity_projections:
+            raise ValueError("No entity projections could be calculated (no bank balances found)")
+
+        # Get the first projection to use as template for dates
+        first_entity = next(iter(entity_projections.keys()))
+        first_projection = entity_projections[first_entity]
+
+        # Combine projections from all entities
+        consolidated = []
+
+        for i, template_point in enumerate(first_projection):
+            # Sum values from all entity projections
+            total_starting_cash = Decimal('0')
+            total_inflows = Decimal('0')
+            total_outflows = Decimal('0')
+            total_ending_cash = Decimal('0')
+
+            for entity_code, projection in entity_projections.items():
+                if i < len(projection):
+                    point = projection[i]
+                    total_starting_cash += point.starting_cash
+                    total_inflows += point.inflows
+                    total_outflows += point.outflows
+                    total_ending_cash += point.ending_cash
+
+            consolidated_point = ProjectionDataPoint(
+                date=template_point.date,
+                starting_cash=total_starting_cash,
+                inflows=total_inflows,
+                outflows=total_outflows,
+                ending_cash=total_ending_cash,
+                entity='Consolidated',
+                timeframe=timeframe,
+                scenario_type=scenario_type
+            )
+            consolidated.append(consolidated_point)
+
+        return ProjectionResult(
+            data_points=consolidated,
+            revenue_events=all_revenue_events,
+            expense_events=all_expense_events
+        )

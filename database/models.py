@@ -79,6 +79,7 @@ class VendorContract(Base):
     frequency = Column(String, nullable=False)
     due_date = Column(Date, nullable=False)
     start_date = Column(Date, nullable=True)  # Date when vendor expense becomes active
+    end_date = Column(Date, nullable=True)  # Date when vendor expense ends (optional)
     entity = Column(String, nullable=False)
     priority = Column(Integer, default=3)
     flexibility_days = Column(Integer, default=0)

@@ -107,3 +107,19 @@ DECIMAL_PLACES = Decimal("0.01")  # 2 decimal places for currency
 DEFAULT_PROJECTION_MONTHS = 12  # 12-month default projection
 MAX_PROJECTION_MONTHS = 36  # Maximum 3-year projection
 
+# ═══════════════════════════════════════════════════════════════════
+# PAYROLL CONFIGURATION
+# ═══════════════════════════════════════════════════════════════════
+# Payroll is paid on the 15th and 30th of each month
+# Each entity can have different payroll amounts
+PAYROLL_CONFIG = {
+    "YAHSHUA": {
+        "15th": Decimal('1000000'),  # ₱1M on 15th
+        "30th": Decimal('1000000'),  # ₱1M on 30th
+    },
+    "ABBA": {
+        "15th": Decimal('500000'),   # ₱500K on 15th
+        "30th": Decimal('500000'),   # ₱500K on 30th
+    }
+}
+

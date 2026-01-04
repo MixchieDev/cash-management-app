@@ -68,28 +68,37 @@ class RevenueCalculator:
         else:  # realistic
             self.payment_delay_days = settings['realistic_delay_days']  # Default: 10 days
 
-    def calculate_invoice_date(self, billing_month: date) -> date:
+    def calculate_invoice_date(self, billing_month: date, invoice_day: Optional[int] = None) -> date:
         """
         Calculate invoice date for a billing month.
 
-        Invoice is sent X days BEFORE the 1st of the billing month (configurable).
+        Invoice is sent on a specific day of the month BEFORE the billing month.
 
         Args:
             billing_month: Month being billed (e.g., March 2026)
+            invoice_day: Day of month to send invoice (from customer contract).
+                        If None, uses global invoice_lead_days setting.
 
         Returns:
-            Invoice date (e.g., Feb 15 for March billing with default 15-day lead)
+            Invoice date (e.g., Feb 15 for March billing if invoice_day=15)
 
         Example:
             >>> calc = RevenueCalculator()
-            >>> calc.calculate_invoice_date(date(2026, 3, 1))
+            >>> calc.calculate_invoice_date(date(2026, 3, 1), invoice_day=15)
             date(2026, 2, 15)
         """
         # Go back to previous month
         previous_month = billing_month - relativedelta(months=1)
 
-        # Invoice on the configured day of previous month (default: 15th)
-        invoice_date = date(previous_month.year, previous_month.month, self.invoice_lead_days)
+        # Use customer's invoice_day if provided, otherwise use global setting
+        day_of_invoice = invoice_day if invoice_day is not None else self.invoice_lead_days
+
+        # Ensure day is valid for the month (handle months with fewer days)
+        from calendar import monthrange
+        max_day = monthrange(previous_month.year, previous_month.month)[1]
+        day_of_invoice = min(day_of_invoice, max_day)
+
+        invoice_date = date(previous_month.year, previous_month.month, day_of_invoice)
 
         return invoice_date
 
@@ -205,8 +214,9 @@ class RevenueCalculator:
             billing_months = self.get_billing_months(contract, start_date, end_date)
 
             for billing_month in billing_months:
-                # Calculate invoice date
-                invoice_date = self.calculate_invoice_date(billing_month)
+                # Calculate invoice date using customer's invoice_day setting
+                customer_invoice_day = getattr(contract, 'invoice_day', None)
+                invoice_date = self.calculate_invoice_date(billing_month, customer_invoice_day)
 
                 # Calculate payment date
                 payment_date = self.calculate_payment_date(

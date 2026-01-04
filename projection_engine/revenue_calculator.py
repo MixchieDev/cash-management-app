@@ -61,6 +61,7 @@ class RevenueCalculator:
         # Load settings from database
         settings = _get_payment_terms_settings()
         self.invoice_lead_days = settings['invoice_lead_days']
+        self.payment_terms_days = settings['payment_terms_days']  # Global default
 
         # Determine payment delay based on scenario
         if scenario_type == 'optimistic':
@@ -214,14 +215,18 @@ class RevenueCalculator:
             billing_months = self.get_billing_months(contract, start_date, end_date)
 
             for billing_month in billing_months:
-                # Calculate invoice date using customer's invoice_day setting
+                # Calculate invoice date using customer's invoice_day setting (or global default)
                 customer_invoice_day = getattr(contract, 'invoice_day', None)
                 invoice_date = self.calculate_invoice_date(billing_month, customer_invoice_day)
+
+                # Use customer's payment terms or fall back to global setting
+                customer_payment_terms = getattr(contract, 'payment_terms_days', None)
+                effective_payment_terms = customer_payment_terms if customer_payment_terms is not None else self.payment_terms_days
 
                 # Calculate payment date
                 payment_date = self.calculate_payment_date(
                     invoice_date,
-                    contract.payment_terms_days
+                    effective_payment_terms
                 )
 
                 # Check for payment override

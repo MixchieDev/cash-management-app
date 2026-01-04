@@ -238,8 +238,8 @@ def import_customer_contracts(save_to_db: bool = True) -> List[Dict]:
                 'status': client_status,
                 'who_acquired': str(row['Who acquired the client']).strip(),
                 'entity': entity,
-                'invoice_day': int(row.get('Invoice Day', 15)) if not pd.isna(row.get('Invoice Day')) else 15,
-                'payment_terms_days': int(row.get('Payment Terms Days', 30)) if not pd.isna(row.get('Payment Terms Days')) else 30,
+                'invoice_day': int(row.get('Invoice Day')) if not pd.isna(row.get('Invoice Day')) and row.get('Invoice Day') != '' else None,  # None = use global setting
+                'payment_terms_days': int(row.get('Payment Terms Days')) if not pd.isna(row.get('Payment Terms Days')) and row.get('Payment Terms Days') != '' else None,  # None = use global setting
                 'reliability_score': Decimal(str(row.get('Reliability Score', 0.80))) if not pd.isna(row.get('Reliability Score')) else Decimal('0.80'),
                 'notes': str(row.get('Notes', '')).strip() if not pd.isna(row.get('Notes')) else None
             }

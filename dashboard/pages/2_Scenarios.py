@@ -16,6 +16,8 @@ from auth.authentication import require_auth
 from utils.currency_formatter import format_currency
 from dashboard.components.styling import load_css, page_header
 from dashboard.theme import COLORS, get_chart_layout, CHART_COLORS
+from scenario_engine.scenario_storage import ScenarioStorage
+from datetime import datetime
 
 # ═══════════════════════════════════════════════════════════════════
 # PAGE SETUP
@@ -289,8 +291,68 @@ if st.session_state.current_scenario['changes']:
             if not st.session_state.current_scenario['name']:
                 st.error("Please enter a scenario name before saving")
             else:
-                st.success(f"✅ Scenario '{st.session_state.current_scenario['name']}' saved!")
-                st.info("Note: Scenario storage will be fully implemented in backend integration")
+                try:
+                    # Create scenario in database
+                    entity = st.session_state.current_scenario['entity']
+                    if entity == 'Both':
+                        entity = 'YAHSHUA'  # Default to YAHSHUA for "Both"
+
+                    scenario_id = ScenarioStorage.create_scenario(
+                        scenario_name=st.session_state.current_scenario['name'],
+                        entity=entity,
+                        description=f"Created via Scenario Builder",
+                        created_by=st.session_state.get('username', 'Unknown')
+                    )
+
+                    # Add each change to the scenario
+                    for change in st.session_state.current_scenario['changes']:
+                        change_type = change['type']
+                        start_date_str = change.get('start_date') or change.get('loss_date')
+                        start_date = datetime.fromisoformat(start_date_str).date() if start_date_str else date.today()
+
+                        if change_type == 'hiring':
+                            ScenarioStorage.add_scenario_change(
+                                scenario_id=scenario_id,
+                                change_type='hiring',
+                                start_date=start_date,
+                                employees=change.get('employees'),
+                                salary_per_employee=change.get('salary_per_employee')
+                            )
+                        elif change_type == 'expense':
+                            ScenarioStorage.add_scenario_change(
+                                scenario_id=scenario_id,
+                                change_type='expense',
+                                start_date=start_date,
+                                expense_name=change.get('name'),
+                                expense_amount=change.get('amount_per_month')
+                            )
+                        elif change_type == 'revenue':
+                            ScenarioStorage.add_scenario_change(
+                                scenario_id=scenario_id,
+                                change_type='revenue',
+                                start_date=start_date,
+                                new_clients=change.get('new_clients'),
+                                revenue_per_client=change.get('revenue_per_client')
+                            )
+                        elif change_type == 'customer_loss':
+                            ScenarioStorage.add_scenario_change(
+                                scenario_id=scenario_id,
+                                change_type='customer_loss',
+                                start_date=start_date,
+                                lost_revenue=change.get('revenue_lost'),
+                                notes=change.get('customer_name')
+                            )
+
+                    st.success(f"✅ Scenario '{st.session_state.current_scenario['name']}' saved successfully!")
+
+                    # Clear the current scenario after saving
+                    st.session_state.current_scenario = {'name': '', 'entity': 'YAHSHUA', 'changes': []}
+                    st.rerun()
+
+                except Exception as e:
+                    st.error(f"Error saving scenario: {str(e)}")
+                    import traceback
+                    st.code(traceback.format_exc())
 
     with col3:
         if st.button("🗑️ Clear All", use_container_width=True):

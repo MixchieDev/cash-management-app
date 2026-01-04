@@ -574,3 +574,274 @@ def extract_spreadsheet_id(url: str) -> str:
         return url.split("/d/")[1].split("/")[0]
     except (IndexError, AttributeError):
         return ''
+
+
+# ═══════════════════════════════════════════════════════════════════
+# ENTITY MANAGEMENT FUNCTIONS
+# ═══════════════════════════════════════════════════════════════════
+
+def init_entities_table() -> bool:
+    """
+    Initialize entities table if it doesn't exist.
+
+    Returns:
+        True if successful, False otherwise
+    """
+    try:
+        with db_manager.engine.connect() as conn:
+            # Create entities table
+            conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS entities (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    short_code VARCHAR(50) UNIQUE NOT NULL,
+                    full_name VARCHAR(200) NOT NULL,
+                    is_active BOOLEAN DEFAULT 1,
+                    display_order INTEGER DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """))
+
+            # Create indexes
+            conn.execute(text("CREATE INDEX IF NOT EXISTS idx_entities_active ON entities(is_active)"))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS idx_entities_order ON entities(display_order)"))
+
+            # Seed default entities if table is empty
+            result = conn.execute(text("SELECT COUNT(*) FROM entities")).fetchone()
+            if result[0] == 0:
+                conn.execute(text("""
+                    INSERT INTO entities (short_code, full_name, display_order) VALUES
+                        ('YAHSHUA', 'YAHSHUA Outsourcing Worldwide Inc', 1),
+                        ('ABBA', 'The ABBA Initiative OPC', 2)
+                """))
+
+            conn.commit()
+            return True
+    except Exception as e:
+        print(f"Error initializing entities table: {e}")
+        return False
+
+
+def get_all_entities(include_inactive: bool = False) -> List[Dict]:
+    """
+    Get all entities from database.
+
+    Args:
+        include_inactive: Whether to include inactive entities
+
+    Returns:
+        List of entity dictionaries
+
+    Example:
+        >>> get_all_entities()
+        [{'short_code': 'YAHSHUA', 'full_name': 'YAHSHUA Outsourcing Worldwide Inc', ...}]
+    """
+    try:
+        # Ensure table exists
+        init_entities_table()
+
+        with db_manager.engine.connect() as conn:
+            if include_inactive:
+                query = text("SELECT id, short_code, full_name, is_active, display_order FROM entities ORDER BY display_order")
+            else:
+                query = text("SELECT id, short_code, full_name, is_active, display_order FROM entities WHERE is_active = 1 ORDER BY display_order")
+
+            results = conn.execute(query).fetchall()
+
+            return [
+                {
+                    'id': row[0],
+                    'short_code': row[1],
+                    'full_name': row[2],
+                    'is_active': bool(row[3]),
+                    'display_order': row[4]
+                }
+                for row in results
+            ]
+    except Exception as e:
+        print(f"Error getting entities: {e}")
+        # Return defaults
+        return [
+            {'id': 1, 'short_code': 'YAHSHUA', 'full_name': 'YAHSHUA Outsourcing Worldwide Inc', 'is_active': True, 'display_order': 1},
+            {'id': 2, 'short_code': 'ABBA', 'full_name': 'The ABBA Initiative OPC', 'is_active': True, 'display_order': 2}
+        ]
+
+
+def get_entity_by_code(short_code: str) -> Optional[Dict]:
+    """
+    Get a single entity by short code.
+
+    Args:
+        short_code: Entity short code (e.g., 'YAHSHUA')
+
+    Returns:
+        Entity dictionary or None if not found
+    """
+    try:
+        with db_manager.engine.connect() as conn:
+            result = conn.execute(
+                text("SELECT id, short_code, full_name, is_active, display_order FROM entities WHERE short_code = :code"),
+                {'code': short_code}
+            ).fetchone()
+
+            if result:
+                return {
+                    'id': result[0],
+                    'short_code': result[1],
+                    'full_name': result[2],
+                    'is_active': bool(result[3]),
+                    'display_order': result[4]
+                }
+    except Exception:
+        pass
+    return None
+
+
+def create_entity(
+    short_code: str,
+    full_name: str,
+    display_order: int = 0,
+    updated_by: Optional[str] = None
+) -> bool:
+    """
+    Create a new entity.
+
+    Args:
+        short_code: Unique short code (e.g., 'NEWCO')
+        full_name: Full legal name
+        display_order: Display order in UI
+        updated_by: Username who created the entity
+
+    Returns:
+        True if successful, False otherwise
+    """
+    try:
+        # Ensure table exists
+        init_entities_table()
+
+        with db_manager.engine.connect() as conn:
+            conn.execute(
+                text("""
+                    INSERT INTO entities (short_code, full_name, display_order)
+                    VALUES (:code, :name, :order)
+                """),
+                {'code': short_code.upper(), 'name': full_name, 'order': display_order}
+            )
+            conn.commit()
+
+            # Initialize default payroll settings for new entity
+            code_lower = short_code.lower()
+            set_setting(f'payroll_{code_lower}_15th', Decimal('0'), 'decimal', 'payroll', updated_by=updated_by)
+            set_setting(f'payroll_{code_lower}_30th', Decimal('0'), 'decimal', 'payroll', updated_by=updated_by)
+
+            return True
+    except Exception as e:
+        print(f"Error creating entity: {e}")
+        return False
+
+
+def update_entity(
+    short_code: str,
+    full_name: Optional[str] = None,
+    is_active: Optional[bool] = None,
+    display_order: Optional[int] = None,
+    updated_by: Optional[str] = None
+) -> bool:
+    """
+    Update an existing entity.
+
+    Args:
+        short_code: Entity short code to update
+        full_name: New full name (optional)
+        is_active: New active status (optional)
+        display_order: New display order (optional)
+        updated_by: Username who made the update
+
+    Returns:
+        True if successful, False otherwise
+    """
+    try:
+        updates = []
+        params = {'code': short_code}
+
+        if full_name is not None:
+            updates.append("full_name = :name")
+            params['name'] = full_name
+
+        if is_active is not None:
+            updates.append("is_active = :active")
+            params['active'] = 1 if is_active else 0
+
+        if display_order is not None:
+            updates.append("display_order = :order")
+            params['order'] = display_order
+
+        if not updates:
+            return True  # Nothing to update
+
+        updates.append("updated_at = datetime('now')")
+
+        query = f"UPDATE entities SET {', '.join(updates)} WHERE short_code = :code"
+
+        with db_manager.engine.connect() as conn:
+            conn.execute(text(query), params)
+            conn.commit()
+            return True
+    except Exception as e:
+        print(f"Error updating entity: {e}")
+        return False
+
+
+def get_valid_entity_codes() -> List[str]:
+    """
+    Get list of active entity short codes.
+
+    Returns:
+        List of entity codes (e.g., ['YAHSHUA', 'ABBA'])
+    """
+    entities = get_all_entities(include_inactive=False)
+    return [e['short_code'] for e in entities]
+
+
+def get_entity_full_name_from_db(short_code: str) -> str:
+    """
+    Get full legal name for an entity from database.
+
+    Args:
+        short_code: Entity short code
+
+    Returns:
+        Full legal name or short_code if not found
+    """
+    entity = get_entity_by_code(short_code)
+    if entity:
+        return entity['full_name']
+    return short_code
+
+
+def get_payroll_config_dynamic() -> Dict[str, Dict[str, Decimal]]:
+    """
+    Get payroll configuration for ALL active entities.
+
+    Returns:
+        Dictionary with entity payroll amounts
+
+    Example:
+        >>> get_payroll_config_dynamic()
+        {
+            'YAHSHUA': {'15th': Decimal('1000000'), '30th': Decimal('1000000')},
+            'ABBA': {'15th': Decimal('500000'), '30th': Decimal('500000')},
+            'NEWCO': {'15th': Decimal('0'), '30th': Decimal('0')}
+        }
+    """
+    config = {}
+    entity_codes = get_valid_entity_codes()
+
+    for code in entity_codes:
+        code_lower = code.lower()
+        config[code] = {
+            '15th': get_setting(f'payroll_{code_lower}_15th', Decimal('0')),
+            '30th': get_setting(f'payroll_{code_lower}_30th', Decimal('0'))
+        }
+
+    return config

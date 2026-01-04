@@ -18,8 +18,16 @@ from database.settings_manager import (
     get_payment_terms_config,
     get_alert_thresholds,
     get_google_sheets_config,
-    extract_spreadsheet_id
+    extract_spreadsheet_id,
+    # Entity management functions
+    init_entities_table,
+    get_all_entities,
+    create_entity,
+    update_entity,
+    get_valid_entity_codes,
+    get_payroll_config_dynamic
 )
+from config.entity_mapping import get_entity_full_name, get_valid_entities
 from utils.currency_formatter import format_currency
 
 
@@ -37,9 +45,105 @@ def check_admin_access() -> bool:
     return True
 
 
+def render_entities_tab(is_admin: bool) -> None:
+    """
+    Render entities management tab.
+
+    Args:
+        is_admin: Whether user has edit access
+    """
+    st.subheader("Legal Entities")
+    st.markdown("Manage legal entities. Add new entities or edit existing ones.")
+
+    # Initialize entities table
+    init_entities_table()
+
+    # Get all entities including inactive
+    entities = get_all_entities(include_inactive=True)
+
+    if not entities:
+        st.warning("No entities found. Add your first entity below.")
+    else:
+        st.markdown("### Current Entities")
+
+        for entity in entities:
+            with st.container():
+                col1, col2, col3, col4 = st.columns([1, 3, 1, 1])
+
+                with col1:
+                    st.markdown(f"**{entity['short_code']}**")
+
+                with col2:
+                    new_full_name = st.text_input(
+                        "Full Name",
+                        value=entity['full_name'],
+                        key=f"entity_name_{entity['short_code']}",
+                        disabled=not is_admin,
+                        label_visibility="collapsed"
+                    )
+
+                with col3:
+                    is_active = st.checkbox(
+                        "Active",
+                        value=entity['is_active'],
+                        key=f"entity_active_{entity['short_code']}",
+                        disabled=not is_admin
+                    )
+
+                with col4:
+                    if is_admin:
+                        if st.button("Save", key=f"save_entity_{entity['short_code']}"):
+                            if update_entity(
+                                entity['short_code'],
+                                full_name=new_full_name,
+                                is_active=is_active,
+                                updated_by='CFO'
+                            ):
+                                st.success(f"Updated {entity['short_code']}")
+                                st.rerun()
+                            else:
+                                st.error("Error updating entity")
+
+        st.divider()
+
+    # Add new entity form
+    if is_admin:
+        st.markdown("### Add New Entity")
+
+        col1, col2, col3 = st.columns([1, 2, 1])
+
+        with col1:
+            new_code = st.text_input(
+                "Short Code",
+                key="new_entity_code",
+                help="Unique identifier (e.g., 'NEWCO')",
+                max_chars=20
+            )
+
+        with col2:
+            new_name = st.text_input(
+                "Full Legal Name",
+                key="new_entity_name",
+                help="Full legal entity name"
+            )
+
+        with col3:
+            st.write("")
+            st.write("")
+            if st.button("Add Entity", type="primary", key="add_entity"):
+                if new_code and new_name:
+                    if create_entity(new_code.strip().upper(), new_name.strip(), updated_by='CFO'):
+                        st.success(f"Created entity: {new_code.upper()}")
+                        st.rerun()
+                    else:
+                        st.error("Error creating entity. Code may already exist.")
+                else:
+                    st.warning("Please enter both short code and full name.")
+
+
 def render_payroll_tab(is_admin: bool) -> None:
     """
-    Render payroll configuration tab.
+    Render payroll configuration tab - dynamic for all entities.
 
     Args:
         is_admin: Whether user has edit access
@@ -47,67 +151,71 @@ def render_payroll_tab(is_admin: bool) -> None:
     st.subheader("Payroll Configuration")
     st.markdown("Configure payroll amounts for each entity on 15th and 30th of each month.")
 
-    config = get_payroll_config()
+    # Get dynamic payroll config for all active entities
+    config = get_payroll_config_dynamic()
+    entity_codes = get_valid_entity_codes()
 
-    col1, col2 = st.columns(2)
+    if not entity_codes:
+        st.warning("No active entities found. Add entities in the Entities tab first.")
+        return
 
-    with col1:
-        st.markdown("### YAHSHUA Outsourcing")
-        yahshua_15th = st.number_input(
-            "15th Payment Amount (₱)",
-            value=float(config['YAHSHUA']['15th']),
-            min_value=0.0,
-            step=10000.0,
-            format="%.2f",
-            disabled=not is_admin,
-            key="payroll_yahshua_15th_input"
-        )
-        yahshua_30th = st.number_input(
-            "30th Payment Amount (₱)",
-            value=float(config['YAHSHUA']['30th']),
-            min_value=0.0,
-            step=10000.0,
-            format="%.2f",
-            disabled=not is_admin,
-            key="payroll_yahshua_30th_input"
-        )
-        yahshua_total = yahshua_15th + yahshua_30th
-        st.metric("Monthly Total", format_currency(Decimal(str(yahshua_total))))
+    payroll_values = {}
 
-    with col2:
-        st.markdown("### ABBA Initiative")
-        abba_15th = st.number_input(
-            "15th Payment Amount (₱)",
-            value=float(config['ABBA']['15th']),
-            min_value=0.0,
-            step=10000.0,
-            format="%.2f",
-            disabled=not is_admin,
-            key="payroll_abba_15th_input"
-        )
-        abba_30th = st.number_input(
-            "30th Payment Amount (₱)",
-            value=float(config['ABBA']['30th']),
-            min_value=0.0,
-            step=10000.0,
-            format="%.2f",
-            disabled=not is_admin,
-            key="payroll_abba_30th_input"
-        )
-        abba_total = abba_15th + abba_30th
-        st.metric("Monthly Total", format_currency(Decimal(str(abba_total))))
+    # Create columns for entities (2 per row)
+    for i in range(0, len(entity_codes), 2):
+        cols = st.columns(2)
+
+        for j, col in enumerate(cols):
+            idx = i + j
+            if idx >= len(entity_codes):
+                break
+
+            code = entity_codes[idx]
+            entity_config = config.get(code, {'15th': Decimal('0'), '30th': Decimal('0')})
+
+            with col:
+                st.markdown(f"### {get_entity_full_name(code)}")
+
+                key_15th = f"payroll_{code.lower()}_15th"
+                key_30th = f"payroll_{code.lower()}_30th"
+
+                val_15th = st.number_input(
+                    "15th Payment Amount",
+                    value=float(entity_config['15th']),
+                    min_value=0.0,
+                    step=10000.0,
+                    format="%.2f",
+                    disabled=not is_admin,
+                    key=f"{key_15th}_input"
+                )
+
+                val_30th = st.number_input(
+                    "30th Payment Amount",
+                    value=float(entity_config['30th']),
+                    min_value=0.0,
+                    step=10000.0,
+                    format="%.2f",
+                    disabled=not is_admin,
+                    key=f"{key_30th}_input"
+                )
+
+                entity_total = val_15th + val_30th
+                st.metric("Monthly Total", format_currency(Decimal(str(entity_total))))
+
+                payroll_values[key_15th] = val_15th
+                payroll_values[key_30th] = val_30th
 
     st.divider()
-    combined_total = yahshua_total + abba_total
-    st.metric("Combined Monthly Payroll", format_currency(Decimal(str(combined_total))))
+
+    # Combined total
+    combined_total = sum(payroll_values.values())
+    st.metric("Combined Monthly Payroll (All Entities)", format_currency(Decimal(str(combined_total))))
 
     if is_admin:
         if st.button("Save Payroll Settings", type="primary", key="save_payroll"):
             success = True
-            success &= set_setting('payroll_yahshua_15th', Decimal(str(yahshua_15th)), 'decimal', 'payroll', updated_by='CFO')
-            success &= set_setting('payroll_yahshua_30th', Decimal(str(yahshua_30th)), 'decimal', 'payroll', updated_by='CFO')
-            success &= set_setting('payroll_abba_15th', Decimal(str(abba_15th)), 'decimal', 'payroll', updated_by='CFO')
-            success &= set_setting('payroll_abba_30th', Decimal(str(abba_30th)), 'decimal', 'payroll', updated_by='CFO')
+            for key, value in payroll_values.items():
+                success &= set_setting(key, Decimal(str(value)), 'decimal', 'payroll', updated_by='CFO')
 
             if success:
                 st.success("Payroll settings saved successfully!")
@@ -118,55 +226,75 @@ def render_payroll_tab(is_admin: bool) -> None:
 
 def render_entity_mapping_tab(is_admin: bool) -> None:
     """
-    Render entity mapping configuration tab.
+    Render entity mapping configuration tab with improved UI.
 
     Args:
         is_admin: Whether user has edit access
     """
     st.subheader("Entity Mapping Rules")
-    st.markdown("Map acquisition sources to legal entities (YAHSHUA or ABBA).")
+    st.markdown("Map acquisition sources to legal entities.")
 
     mapping = get_entity_mapping()
+    entity_codes = get_valid_entity_codes()
 
-    # Display current mappings
+    if not entity_codes:
+        st.warning("No active entities found. Add entities in the Entities tab first.")
+        return
+
+    # Display current mappings grouped by entity
     st.markdown("### Current Mappings")
 
-    # Group by entity
-    yahshua_sources = [k for k, v in mapping.items() if v == 'YAHSHUA']
-    abba_sources = [k for k, v in mapping.items() if v == 'ABBA']
+    # Group by entity dynamically
+    entity_sources = {code: [] for code in entity_codes}
+    for source, entity in mapping.items():
+        if entity in entity_sources:
+            entity_sources[entity].append(source)
 
-    col1, col2 = st.columns(2)
-
-    with col1:
-        st.markdown("**YAHSHUA Outsourcing**")
-        for source in yahshua_sources:
-            st.markdown(f"- {source}")
-
-    with col2:
-        st.markdown("**ABBA Initiative**")
-        for source in abba_sources:
-            st.markdown(f"- {source}")
+    # Display in columns
+    cols = st.columns(len(entity_codes))
+    for i, code in enumerate(entity_codes):
+        with cols[i]:
+            st.markdown(f"**{get_entity_full_name(code)}**")
+            sources = entity_sources.get(code, [])
+            if sources:
+                for source in sources:
+                    st.markdown(f"- {source}")
+            else:
+                st.caption("No mappings")
 
     st.divider()
 
     if is_admin:
         st.markdown("### Edit Mappings")
 
-        # Edit existing mappings
+        # Edit existing mappings with remove option
         updated_mapping = {}
+        to_remove = []
+
         for source, entity in mapping.items():
-            col1, col2 = st.columns([2, 1])
+            col1, col2, col3 = st.columns([2, 1, 0.5])
             with col1:
                 st.text(source)
             with col2:
                 new_entity = st.selectbox(
                     "Entity",
-                    options=['YAHSHUA', 'ABBA'],
-                    index=0 if entity == 'YAHSHUA' else 1,
+                    options=entity_codes,
+                    index=entity_codes.index(entity) if entity in entity_codes else 0,
                     key=f"entity_map_{source}",
                     label_visibility="collapsed"
                 )
                 updated_mapping[source] = new_entity
+            with col3:
+                if st.button("X", key=f"remove_{source}", help=f"Remove {source}"):
+                    to_remove.append(source)
+
+        # Remove marked mappings
+        for source in to_remove:
+            if source in updated_mapping:
+                del updated_mapping[source]
+            if set_setting('entity_mapping', updated_mapping, 'json', 'entity_mapping', updated_by='CFO'):
+                st.success(f"Removed mapping: {source}")
+                st.rerun()
 
         st.divider()
 
@@ -176,7 +304,7 @@ def render_entity_mapping_tab(is_admin: bool) -> None:
         with col1:
             new_source = st.text_input("Acquisition Source", key="new_source")
         with col2:
-            new_entity = st.selectbox("Entity", options=['YAHSHUA', 'ABBA'], key="new_entity")
+            new_entity = st.selectbox("Entity", options=entity_codes, key="new_entity")
         with col3:
             st.write("")
             st.write("")
@@ -184,14 +312,14 @@ def render_entity_mapping_tab(is_admin: bool) -> None:
                 if new_source and new_source.strip():
                     updated_mapping[new_source.strip()] = new_entity
                     if set_setting('entity_mapping', updated_mapping, 'json', 'entity_mapping', updated_by='CFO'):
-                        st.success(f"Added mapping: {new_source} → {new_entity}")
+                        st.success(f"Added mapping: {new_source} -> {new_entity}")
                         st.rerun()
                 else:
                     st.warning("Please enter an acquisition source name.")
 
         st.divider()
 
-        if st.button("Save Entity Mappings", type="primary", key="save_entity_mapping"):
+        if st.button("Save All Entity Mappings", type="primary", key="save_entity_mapping"):
             if set_setting('entity_mapping', updated_mapping, 'json', 'entity_mapping', updated_by='CFO'):
                 st.success("Entity mappings saved successfully!")
                 st.rerun()
@@ -304,7 +432,7 @@ def render_alerts_tab(is_admin: bool) -> None:
     with col1:
         st.markdown("### Cash Balance Alerts")
         cash_warning = st.number_input(
-            "Warning threshold (₱)",
+            "Warning threshold",
             value=float(thresholds['cash_warning']),
             min_value=0.0,
             step=100000.0,
@@ -315,7 +443,7 @@ def render_alerts_tab(is_admin: bool) -> None:
         )
 
         cash_critical = st.number_input(
-            "Critical threshold (₱)",
+            "Critical threshold",
             value=float(thresholds['cash_critical']),
             min_value=0.0,
             step=100000.0,
@@ -518,10 +646,11 @@ def main() -> None:
     if not is_admin:
         st.warning("You have viewer access only. Contact an admin to make changes.")
 
-    # Create tabs
+    # Create tabs - Entities first for importance
     tabs = st.tabs([
-        "Payroll",
+        "Entities",
         "Entity Mapping",
+        "Payroll",
         "Payment Terms",
         "Alerts",
         "Data Source",
@@ -529,21 +658,24 @@ def main() -> None:
     ])
 
     with tabs[0]:
-        render_payroll_tab(is_admin)
+        render_entities_tab(is_admin)
 
     with tabs[1]:
         render_entity_mapping_tab(is_admin)
 
     with tabs[2]:
-        render_payment_terms_tab(is_admin)
+        render_payroll_tab(is_admin)
 
     with tabs[3]:
-        render_alerts_tab(is_admin)
+        render_payment_terms_tab(is_admin)
 
     with tabs[4]:
-        render_data_source_tab(is_admin)
+        render_alerts_tab(is_admin)
 
     with tabs[5]:
+        render_data_source_tab(is_admin)
+
+    with tabs[6]:
         render_audit_log_tab()
 
     # Admin-only reset option

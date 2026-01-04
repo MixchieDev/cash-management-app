@@ -2,13 +2,10 @@
 Entity assignment mapping for JESUS Company.
 Maps customer acquisition sources to legal entities.
 
-YAHSHUA Outsourcing Worldwide Inc = Customers from RCBC, Globe, YOWI
-ABBA Initiative OPC = Customers from TAI, PEI
-
-NOTE: Entity mappings are now stored in the database and editable from the
-Settings page. This file provides fallback defaults and helper functions.
+NOTE: Both entities and mappings are now stored in the database and editable
+from the Settings page. This file provides fallback defaults and helper functions.
 """
-from typing import Dict
+from typing import Dict, List
 
 # ═══════════════════════════════════════════════════════════════════
 # DEFAULT ACQUISITION SOURCE → ENTITY MAPPING (Fallback)
@@ -24,10 +21,35 @@ DEFAULT_ENTITY_MAPPING = {
     "PEI": "ABBA",
 }
 
-# ═══════════════════════════════════════════════════════════════════
-# VALID ENTITIES
-# ═══════════════════════════════════════════════════════════════════
-VALID_ENTITIES = ["YAHSHUA", "ABBA", "Consolidated"]
+# Default valid entities (fallback)
+DEFAULT_VALID_ENTITIES = ["YAHSHUA", "ABBA", "Consolidated"]
+
+
+def get_valid_entities() -> List[str]:
+    """
+    Get list of valid entity codes from database.
+    Falls back to defaults if database unavailable.
+
+    Returns:
+        List of valid entity codes including 'Consolidated'
+
+    Example:
+        >>> get_valid_entities()
+        ['YAHSHUA', 'ABBA', 'Consolidated']
+    """
+    try:
+        from database.settings_manager import get_valid_entity_codes
+        codes = get_valid_entity_codes()
+        # Always include Consolidated as a special aggregate option
+        if 'Consolidated' not in codes:
+            codes.append('Consolidated')
+        return codes
+    except Exception:
+        return DEFAULT_VALID_ENTITIES.copy()
+
+
+# For backward compatibility - but prefer get_valid_entities() function
+VALID_ENTITIES = DEFAULT_VALID_ENTITIES
 
 
 def get_entity_mapping() -> Dict[str, str]:
@@ -59,7 +81,7 @@ def assign_entity(acquisition_source: str) -> str:
         acquisition_source: Who acquired the client (from Google Sheets)
 
     Returns:
-        Entity name ('YAHSHUA' or 'ABBA')
+        Entity name (e.g., 'YAHSHUA', 'ABBA')
 
     Raises:
         ValueError: If acquisition source is not mapped
@@ -92,20 +114,28 @@ def assign_entity(acquisition_source: str) -> str:
 
 def get_entity_full_name(entity_code: str) -> str:
     """
-    Get full legal name of entity.
+    Get full legal name of entity from database.
 
     Args:
-        entity_code: 'YAHSHUA' or 'ABBA'
+        entity_code: Entity short code (e.g., 'YAHSHUA', 'ABBA')
 
     Returns:
         Full legal entity name
     """
-    entity_names = {
-        "YAHSHUA": "YAHSHUA Outsourcing Worldwide Inc",
-        "ABBA": "The ABBA Initiative OPC",
-        "Consolidated": "Consolidated (Both Entities)"
-    }
-    return entity_names.get(entity_code, entity_code)
+    # Special case for Consolidated
+    if entity_code == 'Consolidated':
+        return 'Consolidated (All Entities)'
+
+    try:
+        from database.settings_manager import get_entity_full_name_from_db
+        return get_entity_full_name_from_db(entity_code)
+    except Exception:
+        # Fallback to hardcoded names
+        fallback_names = {
+            "YAHSHUA": "YAHSHUA Outsourcing Worldwide Inc",
+            "ABBA": "The ABBA Initiative OPC",
+        }
+        return fallback_names.get(entity_code, entity_code)
 
 
 def validate_entity(entity: str) -> bool:
@@ -118,4 +148,5 @@ def validate_entity(entity: str) -> bool:
     Returns:
         True if valid, False otherwise
     """
-    return entity in VALID_ENTITIES or entity in ["YAHSHUA", "ABBA"]
+    valid_entities = get_valid_entities()
+    return entity in valid_entities

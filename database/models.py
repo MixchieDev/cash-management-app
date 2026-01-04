@@ -15,6 +15,22 @@ from sqlalchemy.orm import relationship
 Base = declarative_base()
 
 
+class Entity(Base):
+    """Legal entity configuration - editable from dashboard."""
+    __tablename__ = 'entities'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    short_code = Column(String(50), unique=True, nullable=False)
+    full_name = Column(String(200), nullable=False)
+    is_active = Column(Boolean, default=True)
+    display_order = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def __repr__(self):
+        return f"<Entity(short_code={self.short_code}, full_name={self.full_name})>"
+
+
 class CustomerContract(Base):
     """Customer contract with recurring revenue."""
     __tablename__ = 'customer_contracts'

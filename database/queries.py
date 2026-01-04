@@ -125,23 +125,66 @@ def get_latest_bank_balance(entity: str) -> Dict:
 
 def get_consolidated_bank_balance() -> Dict:
     """
-    Get consolidated bank balance (YAHSHUA + ABBA).
+    Get consolidated bank balance (ALL active entities combined).
+
+    Dynamically fetches balances for all active entities from the database
+    and returns total with per-entity breakdown.
 
     Returns:
-        Dictionary with 'date', 'amount', 'yahshua_amount', 'abba_amount'
+        Dictionary with:
+            - 'date': Most recent balance date across all entities
+            - 'amount': Total combined balance
+            - 'entity_amounts': Dict mapping entity code to balance amount
+            - Legacy keys for backward compatibility:
+                - 'yahshua_amount': YAHSHUA balance (if exists)
+                - 'abba_amount': ABBA balance (if exists)
     """
-    yahshua_balance = get_latest_bank_balance('YAHSHUA')
-    abba_balance = get_latest_bank_balance('ABBA')
+    from database.settings_manager import get_valid_entity_codes
 
-    # Use the more recent date
-    most_recent_date = max(yahshua_balance['date'], abba_balance['date'])
+    entity_codes = get_valid_entity_codes()
 
-    return {
+    if not entity_codes:
+        raise ValueError("No active entities found in database")
+
+    entity_balances = {}
+    most_recent_date = None
+
+    for entity_code in entity_codes:
+        try:
+            balance = get_latest_bank_balance(entity_code)
+            entity_balances[entity_code] = balance
+
+            # Track the most recent date across all entities
+            if most_recent_date is None or balance['date'] > most_recent_date:
+                most_recent_date = balance['date']
+
+        except ValueError:
+            # Entity has no bank balance yet - skip but continue
+            continue
+
+    if not entity_balances:
+        raise ValueError("No bank balances found for any active entity")
+
+    # Calculate total
+    total_amount = sum(b['amount'] for b in entity_balances.values())
+
+    # Build result with per-entity breakdown
+    result = {
         'date': most_recent_date,
-        'amount': yahshua_balance['amount'] + abba_balance['amount'],
-        'yahshua_amount': yahshua_balance['amount'],
-        'abba_amount': abba_balance['amount']
+        'amount': total_amount,
+        'entity_amounts': {
+            code: balance['amount']
+            for code, balance in entity_balances.items()
+        }
     }
+
+    # Add legacy keys for backward compatibility
+    if 'YAHSHUA' in entity_balances:
+        result['yahshua_amount'] = entity_balances['YAHSHUA']['amount']
+    if 'ABBA' in entity_balances:
+        result['abba_amount'] = entity_balances['ABBA']['amount']
+
+    return result
 
 
 def get_all_scenarios(entity: Optional[str] = None) -> List[Dict]:

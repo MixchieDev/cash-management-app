@@ -272,34 +272,3 @@ class SettingsAuditLog(Base):
 
     def __repr__(self):
         return f"<SettingsAuditLog(key={self.setting_key}, changed_at={self.changed_at})>"
-class PaymentOverride(Base):
-    """One-off payment date override for customer or vendor payment."""
-    __tablename__ = 'payment_overrides'
-
-    id = Column(Integer, primary_key=True, autoincrement=True)
-
-    # Type: 'customer' or 'vendor'
-    override_type = Column(String, nullable=False)
-
-    # Reference to the contract (can be customer_contract_id or vendor_contract_id)
-    contract_id = Column(Integer, nullable=False)
-
-    # The original scheduled date being overridden
-    original_date = Column(Date, nullable=False)
-
-    # The new payment date (null = skip payment entirely)
-    new_date = Column(Date, nullable=True)
-
-    # Action: 'move' or 'skip'
-    action = Column(String, nullable=False, default='move')
-
-    # Entity for filtering
-    entity = Column(String, nullable=False)
-
-    # Optional reason/notes
-    reason = Column(Text, nullable=True)
-
-    # Audit fields
-    created_by = Column(String, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-

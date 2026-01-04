@@ -9,14 +9,27 @@ from dataclasses import dataclass
 from dateutil.relativedelta import relativedelta
 
 from config.constants import PAYMENT_PLAN_FREQUENCIES
-from config.settings import (
-    INVOICE_DAYS_BEFORE_MONTH,
-    DEFAULT_PAYMENT_TERMS_DAYS,
-    OPTIMISTIC_PAYMENT_DELAY_DAYS,
-    REALISTIC_PAYMENT_DELAY_DAYS
-)
 from database.models import CustomerContract
-from database.queries import get_payment_overrides
+
+
+def _get_payment_terms_settings() -> Dict[str, int]:
+    """
+    Get payment terms settings from database with fallback to defaults.
+
+    Returns:
+        Dictionary with invoice_lead_days, payment_terms_days, realistic_delay_days
+    """
+    try:
+        from database.settings_manager import get_payment_terms_config
+        return get_payment_terms_config()
+    except Exception:
+        # Fallback to defaults if database not available
+        return {
+            'invoice_lead_days': 15,
+            'payment_terms_days': 30,
+            'realistic_delay_days': 10,
+            'default_reliability': 80
+        }
 
 
 @dataclass
@@ -44,23 +57,27 @@ class RevenueCalculator:
         """
         self.scenario_type = scenario_type
 
+        # Load settings from database
+        settings = _get_payment_terms_settings()
+        self.invoice_lead_days = settings['invoice_lead_days']
+
         # Determine payment delay based on scenario
         if scenario_type == 'optimistic':
-            self.payment_delay_days = OPTIMISTIC_PAYMENT_DELAY_DAYS  # 0 days
+            self.payment_delay_days = 0  # On-time payment
         else:  # realistic
-            self.payment_delay_days = REALISTIC_PAYMENT_DELAY_DAYS  # 10 days
+            self.payment_delay_days = settings['realistic_delay_days']  # Default: 10 days
 
     def calculate_invoice_date(self, billing_month: date) -> date:
         """
         Calculate invoice date for a billing month.
 
-        Invoice is sent 15 days BEFORE the 1st of the billing month.
+        Invoice is sent X days BEFORE the 1st of the billing month (configurable).
 
         Args:
             billing_month: Month being billed (e.g., March 2026)
 
         Returns:
-            Invoice date (e.g., Feb 15 for March billing)
+            Invoice date (e.g., Feb 15 for March billing with default 15-day lead)
 
         Example:
             >>> calc = RevenueCalculator()
@@ -70,8 +87,8 @@ class RevenueCalculator:
         # Go back to previous month
         previous_month = billing_month - relativedelta(months=1)
 
-        # Invoice on the 15th of previous month
-        invoice_date = date(previous_month.year, previous_month.month, INVOICE_DAYS_BEFORE_MONTH)
+        # Invoice on the configured day of previous month (default: 15th)
+        invoice_date = date(previous_month.year, previous_month.month, self.invoice_lead_days)
 
         return invoice_date
 
@@ -147,8 +164,7 @@ class RevenueCalculator:
         self,
         contracts: List[CustomerContract],
         start_date: date,
-        end_date: date,
-        payment_overrides: Optional[List[Dict]] = None
+        end_date: date
     ) -> List[RevenueEvent]:
         """
         Calculate all revenue events (payments) for contracts.
@@ -157,26 +173,11 @@ class RevenueCalculator:
             contracts: List of active customer contracts
             start_date: Projection start date
             end_date: Projection end date
-            payment_overrides: Optional list of payment overrides (for testing).
-                             If None, loads from database.
 
         Returns:
             List of revenue events (sorted by date)
         """
         events = []
-
-        # Load payment overrides for customer payments
-        # Use provided overrides if given (for testing), otherwise load from DB
-        if payment_overrides is None:
-            overrides = get_payment_overrides(override_type='customer')
-        else:
-            overrides = payment_overrides
-
-        # Create a lookup dict: (customer_id, original_date) -> override
-        override_lookup = {}
-        for override in overrides:
-            key = (override['contract_id'], override['original_date'])
-            override_lookup[key] = override
 
         for contract in contracts:
             # Skip inactive contracts
@@ -195,19 +196,6 @@ class RevenueCalculator:
                     invoice_date,
                     contract.payment_terms_days
                 )
-
-                # Check for payment override
-                override_key = (contract.id, payment_date)
-                override = override_lookup.get(override_key)
-
-                if override:
-                    # Override found - apply it
-                    if override['action'] == 'skip':
-                        # Skip this payment entirely
-                        continue
-                    elif override['action'] == 'move' and override['new_date']:
-                        # Move payment to new date
-                        payment_date = override['new_date']
 
                 # Only include if payment falls within projection period
                 if start_date <= payment_date <= end_date:

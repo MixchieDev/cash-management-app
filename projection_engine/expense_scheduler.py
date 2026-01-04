@@ -11,7 +11,6 @@ from calendar import monthrange
 
 from config.constants import EXPENSE_FREQUENCIES
 from database.models import VendorContract
-from database.queries import get_payment_overrides
 
 
 @dataclass
@@ -96,8 +95,7 @@ class ExpenseScheduler:
         contracts: List[VendorContract],
         start_date: date,
         end_date: date,
-        entity: Optional[str] = None,
-        payment_overrides: Optional[List[Dict]] = None
+        entity: Optional[str] = None
     ) -> List[ExpenseEvent]:
         """
         Calculate all vendor expense events.
@@ -107,26 +105,11 @@ class ExpenseScheduler:
             start_date: Projection start date
             end_date: Projection end date
             entity: Filter by entity (optional)
-            payment_overrides: Optional list of payment overrides (for testing).
-                             If None, loads from database.
 
         Returns:
             List of vendor expense events
         """
         events = []
-
-        # Load payment overrides for vendor payments
-        # Use provided overrides if given (for testing), otherwise load from DB
-        if payment_overrides is None:
-            overrides = get_payment_overrides(override_type='vendor')
-        else:
-            overrides = payment_overrides
-
-        # Create a lookup dict: (vendor_id, original_date) -> override
-        override_lookup = {}
-        for override in overrides:
-            key = (override['contract_id'], override['original_date'])
-            override_lookup[key] = override
 
         for contract in contracts:
             # Skip inactive contracts
@@ -152,24 +135,6 @@ class ExpenseScheduler:
                 if hasattr(contract, 'start_date') and contract.start_date:
                     if payment_date < contract.start_date:
                         continue
-
-                # Check for payment override
-                override_key = (contract.id, payment_date)
-                override = override_lookup.get(override_key)
-
-                if override:
-                    # Override found - apply it
-                    if override['action'] == 'skip':
-                        # Skip this payment entirely
-                        continue
-                    elif override['action'] == 'move' and override['new_date']:
-                        # Move payment to new date
-                        payment_date = override['new_date']
-
-                # Check if payment is still within projection period after override
-                if not (start_date <= payment_date <= end_date):
-                    continue
-
                 # Use vendor amount and entity directly
                 event_amount = contract.amount
                 event_entity = contract.entity
@@ -193,8 +158,7 @@ class ExpenseScheduler:
         vendor_contracts: List[VendorContract],
         start_date: date,
         end_date: date,
-        entity: str,
-        payment_overrides: Optional[List[Dict]] = None
+        entity: str
     ) -> List[ExpenseEvent]:
         """
         Calculate ALL expense events from vendor contracts.
@@ -204,8 +168,6 @@ class ExpenseScheduler:
             start_date: Projection start date
             end_date: Projection end date
             entity: Entity for expenses
-            payment_overrides: Optional list of payment overrides (for testing).
-                             If None, loads from database.
 
         Returns:
             List of all expense events (sorted by date, then priority)
@@ -213,10 +175,7 @@ class ExpenseScheduler:
         events = []
 
         # Add vendor events (includes payroll vendors)
-        # Pass through payment_overrides to calculate_vendor_events
-        vendor_events = self.calculate_vendor_events(
-            vendor_contracts, start_date, end_date, entity, payment_overrides
-        )
+        vendor_events = self.calculate_vendor_events(vendor_contracts, start_date, end_date, entity)
         events.extend(vendor_events)
 
         # Sort by date, then by priority (lower priority number = higher priority)

@@ -4,12 +4,16 @@ Maps customer acquisition sources to legal entities.
 
 YAHSHUA Outsourcing Worldwide Inc = Customers from RCBC, Globe, YOWI
 ABBA Initiative OPC = Customers from TAI, PEI
+
+NOTE: Entity mappings are now stored in the database and editable from the
+Settings page. This file provides fallback defaults and helper functions.
 """
+from typing import Dict
 
 # ═══════════════════════════════════════════════════════════════════
-# ACQUISITION SOURCE → ENTITY MAPPING
+# DEFAULT ACQUISITION SOURCE → ENTITY MAPPING (Fallback)
 # ═══════════════════════════════════════════════════════════════════
-ENTITY_MAPPING = {
+DEFAULT_ENTITY_MAPPING = {
     # YAHSHUA Outsourcing Worldwide Inc
     "RCBC Partner": "YAHSHUA",
     "Globe Partner": "YAHSHUA",
@@ -24,6 +28,25 @@ ENTITY_MAPPING = {
 # VALID ENTITIES
 # ═══════════════════════════════════════════════════════════════════
 VALID_ENTITIES = ["YAHSHUA", "ABBA", "Consolidated"]
+
+
+def get_entity_mapping() -> Dict[str, str]:
+    """
+    Get entity mapping from database with fallback to defaults.
+
+    Returns:
+        Dictionary mapping acquisition sources to entities
+    """
+    try:
+        from database.settings_manager import get_entity_mapping as db_get_mapping
+        return db_get_mapping()
+    except Exception:
+        return DEFAULT_ENTITY_MAPPING.copy()
+
+
+# For backward compatibility
+ENTITY_MAPPING = get_entity_mapping()
+
 
 # ═══════════════════════════════════════════════════════════════════
 # ENTITY ASSIGNMENT FUNCTION
@@ -54,13 +77,17 @@ def assign_entity(acquisition_source: str) -> str:
 
     acquisition_source = acquisition_source.strip()
 
-    if acquisition_source not in ENTITY_MAPPING:
+    # Get current mapping from database
+    current_mapping = get_entity_mapping()
+
+    if acquisition_source not in current_mapping:
         raise ValueError(
             f"Unmapped acquisition source: '{acquisition_source}'. "
-            f"Valid sources: {list(ENTITY_MAPPING.keys())}"
+            f"Valid sources: {list(current_mapping.keys())}. "
+            f"Add this mapping in Settings > Entity Mapping."
         )
 
-    return ENTITY_MAPPING[acquisition_source]
+    return current_mapping[acquisition_source]
 
 
 def get_entity_full_name(entity_code: str) -> str:

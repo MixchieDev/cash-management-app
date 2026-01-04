@@ -217,3 +217,42 @@ class SystemMetadata(Base):
 
     def __repr__(self):
         return f"<SystemMetadata(key={self.key}, value={self.value})>"
+
+
+class AppSettings(Base):
+    """Application settings editable from dashboard."""
+    __tablename__ = 'app_settings'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    setting_key = Column(String(100), unique=True, nullable=False)
+    setting_value = Column(Text, nullable=False)
+    setting_type = Column(String(20), nullable=False)
+    category = Column(String(50), nullable=False)
+    description = Column(Text, nullable=True)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_by = Column(String(100), nullable=True)
+
+    __table_args__ = (
+        CheckConstraint(
+            "setting_type IN ('string', 'integer', 'decimal', 'boolean', 'json')",
+            name='ck_setting_type'
+        ),
+    )
+
+    def __repr__(self):
+        return f"<AppSettings(key={self.setting_key}, category={self.category})>"
+
+
+class SettingsAuditLog(Base):
+    """Audit log for settings changes."""
+    __tablename__ = 'settings_audit_log'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    setting_key = Column(String(100), nullable=False)
+    old_value = Column(Text, nullable=True)
+    new_value = Column(Text, nullable=False)
+    changed_by = Column(String(100), nullable=True)
+    changed_at = Column(DateTime, default=datetime.utcnow)
+
+    def __repr__(self):
+        return f"<SettingsAuditLog(key={self.setting_key}, changed_at={self.changed_at})>"

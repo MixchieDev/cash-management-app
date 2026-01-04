@@ -4,30 +4,60 @@ Imports customer contracts, vendor contracts, and bank balances from Google Shee
 
 USES PUBLIC CSV EXPORT - NO CREDENTIALS REQUIRED!
 Google Sheets must be shared as "Anyone with the link can view"
+
+Sheet names and URL are configurable from Settings page in dashboard.
 """
 import pandas as pd
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Tuple
 from datetime import datetime, date
 from decimal import Decimal
 from urllib.parse import quote
 
-from config.settings import SPREADSHEET_ID
-from config.google_sheets_config import (
-    CUSTOMER_CONTRACTS_SHEET,
-    VENDOR_CONTRACTS_SHEET,
-    BANK_BALANCES_SHEET
-)
 from config.entity_mapping import assign_entity
 from database.db_manager import db_manager
 from database.models import CustomerContract, VendorContract, BankBalance, SystemMetadata
 
 
-def get_sheet_csv_url(sheet_name: str) -> str:
+def _get_sheets_config() -> Tuple[str, str, str, str]:
+    """
+    Get Google Sheets configuration from database with fallback to defaults.
+
+    Returns:
+        Tuple of (spreadsheet_id, customers_sheet, vendors_sheet, bank_balances_sheet)
+    """
+    try:
+        from database.settings_manager import get_google_sheets_config, extract_spreadsheet_id
+        config = get_google_sheets_config()
+        spreadsheet_id = extract_spreadsheet_id(config['url'])
+        return (
+            spreadsheet_id,
+            config['customers_sheet'],
+            config['vendors_sheet'],
+            config['bank_balances_sheet']
+        )
+    except Exception:
+        # Fallback to original config files
+        from config.settings import SPREADSHEET_ID
+        from config.google_sheets_config import (
+            CUSTOMER_CONTRACTS_SHEET,
+            VENDOR_CONTRACTS_SHEET,
+            BANK_BALANCES_SHEET
+        )
+        return (
+            SPREADSHEET_ID,
+            CUSTOMER_CONTRACTS_SHEET,
+            VENDOR_CONTRACTS_SHEET,
+            BANK_BALANCES_SHEET
+        )
+
+
+def get_sheet_csv_url(sheet_name: str, spreadsheet_id: Optional[str] = None) -> str:
     """
     Generate CSV export URL for a Google Sheets tab.
 
     Args:
         sheet_name: Name of the sheet tab
+        spreadsheet_id: Optional spreadsheet ID (uses database config if not provided)
 
     Returns:
         CSV export URL
@@ -36,9 +66,12 @@ def get_sheet_csv_url(sheet_name: str) -> str:
         >>> get_sheet_csv_url("Customer Contracts")
         'https://docs.google.com/spreadsheets/d/SPREADSHEET_ID/gviz/tq?tqx=out:csv&sheet=Customer%20Contracts'
     """
+    if spreadsheet_id is None:
+        spreadsheet_id, _, _, _ = _get_sheets_config()
+
     # URL encode the sheet name (spaces become %20)
     encoded_sheet_name = quote(sheet_name)
-    return f"https://docs.google.com/spreadsheets/d/{SPREADSHEET_ID}/gviz/tq?tqx=out:csv&sheet={encoded_sheet_name}"
+    return f"https://docs.google.com/spreadsheets/d/{spreadsheet_id}/gviz/tq?tqx=out:csv&sheet={encoded_sheet_name}"
 
 
 def read_sheet_as_dataframe(sheet_name: str) -> pd.DataFrame:
@@ -146,6 +179,7 @@ def import_customer_contracts(save_to_db: bool = True) -> List[Dict]:
     Import customer contracts from Google Sheets using public CSV export.
 
     NO CREDENTIALS REQUIRED - uses public CSV export URL.
+    Sheet names are configurable from Settings page.
 
     Args:
         save_to_db: If True, save to database (default: True)
@@ -158,8 +192,11 @@ def import_customer_contracts(save_to_db: bool = True) -> List[Dict]:
     """
     print("Importing customer contracts from Google Sheets...")
 
+    # Get sheet name from database config
+    _, customers_sheet, _, _ = _get_sheets_config()
+
     # Read sheet as DataFrame (no authentication needed!)
-    df = read_sheet_as_dataframe(CUSTOMER_CONTRACTS_SHEET)
+    df = read_sheet_as_dataframe(customers_sheet)
 
     if df.empty:
         print("⚠ No customer contracts found in Google Sheets")
@@ -241,6 +278,7 @@ def import_vendor_contracts(save_to_db: bool = True) -> List[Dict]:
     Import vendor contracts from Google Sheets using public CSV export.
 
     NO CREDENTIALS REQUIRED - uses public CSV export URL.
+    Sheet names are configurable from Settings page.
 
     Args:
         save_to_db: If True, save to database (default: True)
@@ -253,8 +291,11 @@ def import_vendor_contracts(save_to_db: bool = True) -> List[Dict]:
     """
     print("Importing vendor contracts from Google Sheets...")
 
+    # Get sheet name from database config
+    _, _, vendors_sheet, _ = _get_sheets_config()
+
     # Read sheet as DataFrame (no authentication needed!)
-    df = read_sheet_as_dataframe(VENDOR_CONTRACTS_SHEET)
+    df = read_sheet_as_dataframe(vendors_sheet)
 
     if df.empty:
         print("⚠ No vendor contracts found in Google Sheets")
@@ -382,6 +423,7 @@ def import_bank_balances(save_to_db: bool = True) -> List[Dict]:
     Import bank balances from Google Sheets using public CSV export.
 
     NO CREDENTIALS REQUIRED - uses public CSV export URL.
+    Sheet names are configurable from Settings page.
 
     Expects format with columns: Date, YAHSHUA Balance, ABBA Balance, Total, Notes
     Converts to one row per entity in database.
@@ -397,8 +439,11 @@ def import_bank_balances(save_to_db: bool = True) -> List[Dict]:
     """
     print("Importing bank balances from Google Sheets...")
 
+    # Get sheet name from database config
+    _, _, _, bank_balances_sheet = _get_sheets_config()
+
     # Read sheet as DataFrame (no authentication needed!)
-    df = read_sheet_as_dataframe(BANK_BALANCES_SHEET)
+    df = read_sheet_as_dataframe(bank_balances_sheet)
 
     if df.empty:
         print("⚠ No bank balances found in Google Sheets")

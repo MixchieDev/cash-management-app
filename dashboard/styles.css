@@ -1,0 +1,555 @@
+/*
+ * Apple-inspired styles for JESUS Company Cash Management Dashboard
+ * Clean, minimal design with generous whitespace and subtle shadows
+ */
+
+/* ═══════════════════════════════════════════════════════════════════
+   CSS VARIABLES - Apple Design Language
+   ═══════════════════════════════════════════════════════════════════ */
+
+:root {
+    /* Base colors */
+    --color-background: #F5F5F7;
+    --color-surface: #FFFFFF;
+    --color-border: #E5E5E7;
+
+    /* Text colors */
+    --color-text-primary: #1D1D1F;
+    --color-text-secondary: #86868B;
+    --color-text-muted: #AEAEB2;
+
+    /* Accent - Apple Blue */
+    --color-accent: #007AFF;
+    --color-accent-hover: #0066D6;
+    --color-accent-light: rgba(0, 122, 255, 0.1);
+
+    /* Status colors */
+    --color-success: #34C759;
+    --color-success-light: rgba(52, 199, 89, 0.1);
+    --color-warning: #FF9500;
+    --color-warning-light: rgba(255, 149, 0, 0.1);
+    --color-danger: #FF3B30;
+    --color-danger-light: rgba(255, 59, 48, 0.1);
+
+    /* Entity colors */
+    --color-yahshua: #007AFF;
+    --color-yahshua-light: rgba(0, 122, 255, 0.1);
+    --color-abba: #AF52DE;
+    --color-abba-light: rgba(175, 82, 222, 0.1);
+
+    /* Typography */
+    --font-primary: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
+    --font-mono: 'SF Mono', 'Fira Code', Consolas, monospace;
+
+    /* Font sizes - Apple scale */
+    --text-xs: 11px;
+    --text-sm: 13px;
+    --text-base: 15px;
+    --text-lg: 17px;
+    --text-xl: 22px;
+    --text-2xl: 28px;
+    --text-3xl: 34px;
+
+    /* Spacing */
+    --spacing-xs: 4px;
+    --spacing-sm: 8px;
+    --spacing-md: 16px;
+    --spacing-lg: 24px;
+    --spacing-xl: 32px;
+    --spacing-2xl: 48px;
+
+    /* Border radius - generous Apple style */
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 16px;
+    --radius-xl: 20px;
+
+    /* Shadows - subtle */
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06);
+    --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.08);
+    --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.10);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   GLOBAL STYLES
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* Hide Streamlit branding */
+#MainMenu {visibility: hidden;}
+footer {visibility: hidden;}
+header {visibility: hidden;}
+
+/* App background */
+.stApp {
+    background-color: var(--color-background) !important;
+    font-family: var(--font-primary) !important;
+}
+
+/* Main container */
+.main .block-container {
+    padding-top: 2rem;
+    padding-bottom: 2rem;
+    max-width: 1200px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   SIDEBAR - Apple style
+   ═══════════════════════════════════════════════════════════════════ */
+
+[data-testid="stSidebar"] {
+    background-color: var(--color-background) !important;
+    border-right: none !important;
+}
+
+[data-testid="stSidebar"] > div:first-child {
+    padding-top: var(--spacing-lg);
+}
+
+[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p {
+    font-size: var(--text-base);
+    color: var(--color-text-secondary);
+}
+
+/* Sidebar navigation items */
+[data-testid="stSidebar"] .stRadio label {
+    font-size: var(--text-base) !important;
+    font-weight: 500 !important;
+    color: var(--color-text-primary) !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   TYPOGRAPHY
+   ═══════════════════════════════════════════════════════════════════ */
+
+h1 {
+    font-size: var(--text-2xl) !important;
+    font-weight: 600 !important;
+    color: var(--color-text-primary) !important;
+    letter-spacing: -0.5px !important;
+    margin-bottom: var(--spacing-sm) !important;
+}
+
+h2 {
+    font-size: var(--text-xl) !important;
+    font-weight: 600 !important;
+    color: var(--color-text-primary) !important;
+    letter-spacing: -0.3px !important;
+    margin-bottom: var(--spacing-md) !important;
+}
+
+h3 {
+    font-size: var(--text-lg) !important;
+    font-weight: 600 !important;
+    color: var(--color-text-primary) !important;
+    margin-bottom: var(--spacing-sm) !important;
+}
+
+p, .stMarkdown {
+    font-size: var(--text-base);
+    color: var(--color-text-secondary);
+    line-height: 1.5;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   CARDS & CONTAINERS - White with shadow, no border
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* Metric containers */
+[data-testid="stMetric"] {
+    background-color: var(--color-surface) !important;
+    padding: var(--spacing-lg) !important;
+    border-radius: var(--radius-lg) !important;
+    box-shadow: var(--shadow-md) !important;
+    border: none !important;
+}
+
+[data-testid="stMetricValue"] {
+    font-size: var(--text-3xl) !important;
+    font-weight: 600 !important;
+    color: var(--color-text-primary) !important;
+    font-family: var(--font-primary) !important;
+}
+
+[data-testid="stMetricLabel"] {
+    font-size: var(--text-sm) !important;
+    color: var(--color-text-secondary) !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.5px !important;
+    font-weight: 500 !important;
+}
+
+[data-testid="stMetricDelta"] {
+    font-size: var(--text-sm) !important;
+    font-weight: 500 !important;
+}
+
+[data-testid="stMetricDelta"] svg {
+    display: none !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   BUTTONS - Apple style
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* Primary button */
+.stButton > button,
+.stButton > button[kind="primary"],
+.stButton > button[data-testid="baseButton-primary"] {
+    background-color: var(--color-accent) !important;
+    color: white !important;
+    border: none !important;
+    border-radius: var(--radius-sm) !important;
+    padding: 10px 20px !important;
+    font-size: var(--text-base) !important;
+    font-weight: 500 !important;
+    transition: background-color 0.2s ease !important;
+    box-shadow: none !important;
+}
+
+.stButton > button:hover,
+.stButton > button[kind="primary"]:hover {
+    background-color: var(--color-accent-hover) !important;
+}
+
+/* Secondary button */
+.stButton > button[kind="secondary"],
+.stButton > button[data-testid="baseButton-secondary"] {
+    background-color: transparent !important;
+    color: var(--color-accent) !important;
+    border: none !important;
+    padding: 10px 20px !important;
+    font-weight: 500 !important;
+}
+
+.stButton > button[kind="secondary"]:hover {
+    background-color: var(--color-accent-light) !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   FORM INPUTS - Clean Apple style
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* Text inputs */
+.stTextInput > div > div > input,
+.stTextArea > div > div > textarea,
+.stNumberInput > div > div > input {
+    border: 1px solid var(--color-border) !important;
+    border-radius: var(--radius-sm) !important;
+    padding: 10px 14px !important;
+    font-size: var(--text-base) !important;
+    background-color: var(--color-surface) !important;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
+}
+
+.stTextInput > div > div > input:focus,
+.stTextArea > div > div > textarea:focus,
+.stNumberInput > div > div > input:focus {
+    border-color: var(--color-accent) !important;
+    box-shadow: 0 0 0 3px var(--color-accent-light) !important;
+    outline: none !important;
+}
+
+/* Select boxes */
+.stSelectbox > div > div {
+    border: 1px solid var(--color-border) !important;
+    border-radius: var(--radius-sm) !important;
+    background-color: var(--color-surface) !important;
+}
+
+.stSelectbox > div > div:focus-within {
+    border-color: var(--color-accent) !important;
+    box-shadow: 0 0 0 3px var(--color-accent-light) !important;
+}
+
+/* Labels */
+.stTextInput > label,
+.stTextArea > label,
+.stSelectbox > label,
+.stNumberInput > label,
+.stDateInput > label {
+    font-size: var(--text-sm) !important;
+    font-weight: 500 !important;
+    color: var(--color-text-primary) !important;
+    margin-bottom: var(--spacing-xs) !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   TABLES - Clean, no cell borders
+   ═══════════════════════════════════════════════════════════════════ */
+
+[data-testid="stDataFrame"],
+.stDataFrame {
+    border: none !important;
+    border-radius: var(--radius-md) !important;
+    overflow: hidden !important;
+    box-shadow: var(--shadow-md) !important;
+    background-color: var(--color-surface) !important;
+}
+
+[data-testid="stDataFrame"] thead th,
+.stDataFrame thead th {
+    background: var(--color-background) !important;
+    font-size: var(--text-sm) !important;
+    color: var(--color-text-secondary) !important;
+    font-weight: 500 !important;
+    padding: var(--spacing-md) !important;
+    border: none !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.3px !important;
+}
+
+[data-testid="stDataFrame"] tbody td,
+.stDataFrame tbody td {
+    font-size: var(--text-sm) !important;
+    color: var(--color-text-primary) !important;
+    padding: var(--spacing-md) !important;
+    border: none !important;
+    border-bottom: 1px solid var(--color-border) !important;
+}
+
+[data-testid="stDataFrame"] tbody tr:nth-child(even),
+.stDataFrame tbody tr:nth-child(even) {
+    background: #FAFAFA !important;
+}
+
+[data-testid="stDataFrame"] tbody tr:hover,
+.stDataFrame tbody tr:hover {
+    background: var(--color-background) !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   ALERTS - Rounded with tinted background
+   ═══════════════════════════════════════════════════════════════════ */
+
+.stAlert,
+[data-testid="stAlert"] {
+    border-radius: var(--radius-md) !important;
+    border: none !important;
+    border-left: 4px solid !important;
+    padding: var(--spacing-md) var(--spacing-lg) !important;
+}
+
+/* Info alert */
+[data-testid="stAlert"][data-baseweb="notification"] {
+    background: var(--color-accent-light) !important;
+    border-left-color: var(--color-accent) !important;
+}
+
+/* Success alert */
+.element-container:has(.stSuccess) .stAlert,
+div[data-testid="stAlert"]:has([data-testid="stAlertSuccess"]) {
+    background: var(--color-success-light) !important;
+    border-left-color: var(--color-success) !important;
+}
+
+/* Warning alert */
+.element-container:has(.stWarning) .stAlert {
+    background: var(--color-warning-light) !important;
+    border-left-color: var(--color-warning) !important;
+}
+
+/* Error alert */
+.element-container:has(.stError) .stAlert {
+    background: var(--color-danger-light) !important;
+    border-left-color: var(--color-danger) !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   EXPANDERS - Clean Apple style
+   ═══════════════════════════════════════════════════════════════════ */
+
+.streamlit-expanderHeader {
+    background: var(--color-surface) !important;
+    border: none !important;
+    border-radius: var(--radius-md) !important;
+    font-size: var(--text-base) !important;
+    font-weight: 500 !important;
+    color: var(--color-text-primary) !important;
+    box-shadow: var(--shadow-sm) !important;
+    padding: var(--spacing-md) !important;
+}
+
+.streamlit-expanderContent {
+    background: var(--color-surface) !important;
+    border: none !important;
+    border-radius: 0 0 var(--radius-md) var(--radius-md) !important;
+    padding: var(--spacing-lg) !important;
+    box-shadow: var(--shadow-sm) !important;
+    margin-top: -8px !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   TABS - Apple style
+   ═══════════════════════════════════════════════════════════════════ */
+
+.stTabs [data-baseweb="tab-list"] {
+    gap: var(--spacing-xs) !important;
+    background: transparent !important;
+    border-bottom: none !important;
+}
+
+.stTabs [data-baseweb="tab"] {
+    font-size: var(--text-base) !important;
+    font-weight: 500 !important;
+    color: var(--color-text-secondary) !important;
+    padding: var(--spacing-sm) var(--spacing-md) !important;
+    border-radius: var(--radius-sm) !important;
+    border: none !important;
+    background: transparent !important;
+}
+
+.stTabs [data-baseweb="tab"][aria-selected="true"] {
+    color: var(--color-accent) !important;
+    background: var(--color-accent-light) !important;
+}
+
+.stTabs [data-baseweb="tab"]:hover {
+    color: var(--color-text-primary) !important;
+    background: var(--color-background) !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   RADIO BUTTONS
+   ═══════════════════════════════════════════════════════════════════ */
+
+.stRadio > div {
+    gap: var(--spacing-md) !important;
+}
+
+.stRadio [data-testid="stMarkdownContainer"] p {
+    font-size: var(--text-base) !important;
+    color: var(--color-text-primary) !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   DATE INPUT
+   ═══════════════════════════════════════════════════════════════════ */
+
+.stDateInput > div > div {
+    border: 1px solid var(--color-border) !important;
+    border-radius: var(--radius-sm) !important;
+    background: var(--color-surface) !important;
+}
+
+.stDateInput > div > div:focus-within {
+    border-color: var(--color-accent) !important;
+    box-shadow: 0 0 0 3px var(--color-accent-light) !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   PROGRESS BAR
+   ═══════════════════════════════════════════════════════════════════ */
+
+.stProgress > div > div > div {
+    background: var(--color-accent) !important;
+    border-radius: var(--radius-sm) !important;
+}
+
+.stProgress > div > div {
+    background: var(--color-border) !important;
+    border-radius: var(--radius-sm) !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   COLUMNS - Responsive
+   ═══════════════════════════════════════════════════════════════════ */
+
+[data-testid="column"] {
+    min-width: 0 !important;
+    overflow: hidden;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   DIVIDERS - Subtle
+   ═══════════════════════════════════════════════════════════════════ */
+
+hr {
+    border: none !important;
+    border-top: 1px solid var(--color-border) !important;
+    margin: var(--spacing-xl) 0 !important;
+    opacity: 0.5;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   SCROLLBAR - Minimal
+   ═══════════════════════════════════════════════════════════════════ */
+
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--color-border);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--color-text-muted);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   ENTITY BADGES
+   ═══════════════════════════════════════════════════════════════════ */
+
+.entity-badge-yahshua {
+    background: var(--color-yahshua-light);
+    color: var(--color-yahshua);
+    padding: 4px 10px;
+    border-radius: var(--radius-sm);
+    font-size: var(--text-xs);
+    font-weight: 600;
+    display: inline-block;
+}
+
+.entity-badge-abba {
+    background: var(--color-abba-light);
+    color: var(--color-abba);
+    padding: 4px 10px;
+    border-radius: var(--radius-sm);
+    font-size: var(--text-xs);
+    font-weight: 600;
+    display: inline-block;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   EMPTY STATE
+   ═══════════════════════════════════════════════════════════════════ */
+
+.empty-state {
+    text-align: center;
+    padding: var(--spacing-2xl) var(--spacing-lg);
+}
+
+.empty-state-icon {
+    font-size: 48px;
+    margin-bottom: var(--spacing-md);
+    opacity: 0.4;
+}
+
+.empty-state-title {
+    font-size: var(--text-lg);
+    font-weight: 500;
+    color: var(--color-text-secondary);
+    margin-bottom: var(--spacing-sm);
+}
+
+.empty-state-description {
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   CHART CONTAINER
+   ═══════════════════════════════════════════════════════════════════ */
+
+.chart-container {
+    background: var(--color-surface);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-lg);
+    box-shadow: var(--shadow-md);
+}

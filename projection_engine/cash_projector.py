@@ -202,9 +202,11 @@ class CashProjector:
                c. Calculate ending cash: start + inflows - outflows
                d. Update starting cash for next period
         """
-        # Validate entity
-        if entity not in ['YAHSHUA', 'ABBA', 'Consolidated']:
-            raise ValueError(f"Invalid entity: {entity}. Must be YAHSHUA, ABBA, or Consolidated")
+        # Validate entity (dynamically from database)
+        from config.entity_mapping import get_valid_entities
+        valid_entities = get_valid_entities()
+        if entity not in valid_entities:
+            raise ValueError(f"Invalid entity: {entity}. Must be one of: {valid_entities}")
 
         # For consolidated, calculate separately and combine
         if entity == 'Consolidated':
@@ -290,7 +292,10 @@ class CashProjector:
         scenario_id: Optional[int]
     ) -> List[ProjectionDataPoint]:
         """
-        Calculate consolidated projection (YAHSHUA + ABBA combined).
+        Calculate consolidated projection (ALL active entities combined).
+
+        Dynamically fetches all active entities from the database and
+        combines their projections for the consolidated view.
 
         Args:
             start_date: Projection start date
@@ -302,27 +307,62 @@ class CashProjector:
         Returns:
             List of consolidated projection data points
         """
-        # Calculate projections for both entities
-        yahshua_projection = self.calculate_cash_projection(
-            start_date, end_date, 'YAHSHUA', timeframe, scenario_type, scenario_id
-        )
-        abba_projection = self.calculate_cash_projection(
-            start_date, end_date, 'ABBA', timeframe, scenario_type, scenario_id
-        )
+        # Get all active entity codes from database
+        from database.settings_manager import get_valid_entity_codes
+        entity_codes = get_valid_entity_codes()
 
-        # Combine projections
+        if not entity_codes:
+            raise ValueError("No active entities found in database")
+
+        print(f"Calculating consolidated projection for entities: {entity_codes}")
+
+        # Calculate projections for all entities
+        entity_projections = {}
+        for entity_code in entity_codes:
+            try:
+                entity_projections[entity_code] = self.calculate_cash_projection(
+                    start_date, end_date, entity_code, timeframe, scenario_type, scenario_id
+                )
+            except ValueError as e:
+                # Skip entities with no bank balance
+                print(f"Warning: Skipping {entity_code} - {e}")
+                continue
+
+        if not entity_projections:
+            raise ValueError("No entity projections could be calculated (no bank balances found)")
+
+        # Get the first projection to use as template for dates
+        first_entity = next(iter(entity_projections.keys()))
+        first_projection = entity_projections[first_entity]
+
+        # Combine projections from all entities
         consolidated = []
 
-        for yahshua_point, abba_point in zip(yahshua_projection, abba_projection):
-            # Verify dates match
-            assert yahshua_point.date == abba_point.date, "Projection dates must match"
+        for i, template_point in enumerate(first_projection):
+            # Sum values from all entity projections
+            total_starting_cash = Decimal('0')
+            total_inflows = Decimal('0')
+            total_outflows = Decimal('0')
+            total_ending_cash = Decimal('0')
+
+            for entity_code, projection in entity_projections.items():
+                if i < len(projection):
+                    point = projection[i]
+                    # Verify dates match
+                    assert point.date == template_point.date, \
+                        f"Projection dates must match: {point.date} vs {template_point.date}"
+
+                    total_starting_cash += point.starting_cash
+                    total_inflows += point.inflows
+                    total_outflows += point.outflows
+                    total_ending_cash += point.ending_cash
 
             consolidated_point = ProjectionDataPoint(
-                date=yahshua_point.date,
-                starting_cash=yahshua_point.starting_cash + abba_point.starting_cash,
-                inflows=yahshua_point.inflows + abba_point.inflows,
-                outflows=yahshua_point.outflows + abba_point.outflows,
-                ending_cash=yahshua_point.ending_cash + abba_point.ending_cash,
+                date=template_point.date,
+                starting_cash=total_starting_cash,
+                inflows=total_inflows,
+                outflows=total_outflows,
+                ending_cash=total_ending_cash,
                 entity='Consolidated',
                 timeframe=timeframe,
                 scenario_type=scenario_type

@@ -96,7 +96,8 @@ class ExpenseScheduler:
         contracts: List[VendorContract],
         start_date: date,
         end_date: date,
-        entity: Optional[str] = None
+        entity: Optional[str] = None,
+        payment_overrides: Optional[List[Dict]] = None
     ) -> List[ExpenseEvent]:
         """
         Calculate all vendor expense events.
@@ -106,6 +107,8 @@ class ExpenseScheduler:
             start_date: Projection start date
             end_date: Projection end date
             entity: Filter by entity (optional)
+            payment_overrides: Optional list of payment overrides (for testing).
+                             If None, loads from database.
 
         Returns:
             List of vendor expense events
@@ -113,7 +116,11 @@ class ExpenseScheduler:
         events = []
 
         # Load payment overrides for vendor payments
-        overrides = get_payment_overrides(override_type='vendor')
+        # Use provided overrides if given (for testing), otherwise load from DB
+        if payment_overrides is None:
+            overrides = get_payment_overrides(override_type='vendor')
+        else:
+            overrides = payment_overrides
 
         # Create a lookup dict: (vendor_id, original_date) -> override
         override_lookup = {}
@@ -186,7 +193,8 @@ class ExpenseScheduler:
         vendor_contracts: List[VendorContract],
         start_date: date,
         end_date: date,
-        entity: str
+        entity: str,
+        payment_overrides: Optional[List[Dict]] = None
     ) -> List[ExpenseEvent]:
         """
         Calculate ALL expense events from vendor contracts.
@@ -196,6 +204,8 @@ class ExpenseScheduler:
             start_date: Projection start date
             end_date: Projection end date
             entity: Entity for expenses
+            payment_overrides: Optional list of payment overrides (for testing).
+                             If None, loads from database.
 
         Returns:
             List of all expense events (sorted by date, then priority)
@@ -203,7 +213,10 @@ class ExpenseScheduler:
         events = []
 
         # Add vendor events (includes payroll vendors)
-        vendor_events = self.calculate_vendor_events(vendor_contracts, start_date, end_date, entity)
+        # Pass through payment_overrides to calculate_vendor_events
+        vendor_events = self.calculate_vendor_events(
+            vendor_contracts, start_date, end_date, entity, payment_overrides
+        )
         events.extend(vendor_events)
 
         # Sort by date, then by priority (lower priority number = higher priority)

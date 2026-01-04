@@ -343,15 +343,16 @@ def render_payment_terms_tab(is_admin: bool) -> None:
 
     with col1:
         st.markdown("### Invoice Timing")
+        st.caption("Note: Per-customer invoice_day settings override this global default")
         invoice_lead_days = st.number_input(
-            "Invoice sent X days before month",
+            "Default invoice day (of previous month)",
             value=config['invoice_lead_days'],
             min_value=1,
             max_value=28,
             step=1,
             disabled=not is_admin,
             key="invoice_lead_days_input",
-            help="Invoice is sent this many days before the 1st of the billing month"
+            help="Day of the previous month to send invoice. Example: 15 means invoice on Jan 15 for February billing."
         )
 
         payment_terms_days = st.number_input(
@@ -394,10 +395,10 @@ def render_payment_terms_tab(is_admin: bool) -> None:
     # Show example calculation
     st.markdown("### Payment Timeline Example")
     st.info(f"""
-    **For March billing:**
-    - Invoice sent: Feb {28 - invoice_lead_days + 1} (15 days before Mar 1)
-    - Optimistic payment: Mar {invoice_lead_days + payment_terms_days - 28 + 1} (Net {payment_terms_days})
-    - Realistic payment: Mar {invoice_lead_days + payment_terms_days + realistic_delay_days - 28 + 1} (Net {payment_terms_days} + {realistic_delay_days} days delay)
+    **For March billing (invoice_day = {invoice_lead_days}):**
+    - Invoice sent: **February {invoice_lead_days}** (day {invoice_lead_days} of previous month)
+    - Optimistic payment: Feb {invoice_lead_days} + {payment_terms_days} days = **March {invoice_lead_days + payment_terms_days - 28 if invoice_lead_days + payment_terms_days > 28 else invoice_lead_days + payment_terms_days}**
+    - Realistic payment: +{realistic_delay_days} days delay = **March {invoice_lead_days + payment_terms_days + realistic_delay_days - 28 if invoice_lead_days + payment_terms_days + realistic_delay_days > 28 else invoice_lead_days + payment_terms_days + realistic_delay_days}**
     """)
 
     if is_admin:

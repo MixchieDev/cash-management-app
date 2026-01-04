@@ -191,12 +191,15 @@ p, .stMarkdown {
    BUTTONS - Apple style
    ═══════════════════════════════════════════════════════════════════ */
 
-/* Primary button */
+/* Primary button - force white text */
 .stButton > button,
 .stButton > button[kind="primary"],
-.stButton > button[data-testid="baseButton-primary"] {
+.stButton > button[data-testid="baseButton-primary"],
+[data-testid="stBaseButton-primary"],
+button[data-testid="baseButton-primary"],
+.stButton button {
     background-color: var(--color-accent) !important;
-    color: white !important;
+    color: #FFFFFF !important;
     border: none !important;
     border-radius: var(--radius-sm) !important;
     padding: 10px 20px !important;
@@ -206,14 +209,29 @@ p, .stMarkdown {
     box-shadow: none !important;
 }
 
+/* Force white text on button text elements */
+.stButton > button p,
+.stButton > button span,
+.stButton > button div,
+.stButton button p,
+.stButton button span,
+.stButton button div,
+[data-testid="stBaseButton-primary"] p,
+[data-testid="stBaseButton-primary"] span {
+    color: #FFFFFF !important;
+}
+
 .stButton > button:hover,
-.stButton > button[kind="primary"]:hover {
+.stButton > button[kind="primary"]:hover,
+.stButton button:hover {
     background-color: var(--color-accent-hover) !important;
+    color: #FFFFFF !important;
 }
 
 /* Secondary button */
 .stButton > button[kind="secondary"],
-.stButton > button[data-testid="baseButton-secondary"] {
+.stButton > button[data-testid="baseButton-secondary"],
+[data-testid="stBaseButton-secondary"] {
     background-color: transparent !important;
     color: var(--color-accent) !important;
     border: none !important;

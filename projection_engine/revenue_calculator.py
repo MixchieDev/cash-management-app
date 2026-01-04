@@ -10,6 +10,7 @@ from dateutil.relativedelta import relativedelta
 
 from config.constants import PAYMENT_PLAN_FREQUENCIES
 from database.models import CustomerContract
+from database.queries import get_payment_overrides
 
 
 def _get_payment_terms_settings() -> Dict[str, int]:
@@ -164,7 +165,8 @@ class RevenueCalculator:
         self,
         contracts: List[CustomerContract],
         start_date: date,
-        end_date: date
+        end_date: date,
+        payment_overrides: Optional[List[Dict]] = None
     ) -> List[RevenueEvent]:
         """
         Calculate all revenue events (payments) for contracts.
@@ -173,11 +175,26 @@ class RevenueCalculator:
             contracts: List of active customer contracts
             start_date: Projection start date
             end_date: Projection end date
+            payment_overrides: Optional list of payment overrides (for testing).
+                              If None, loads from database.
 
         Returns:
             List of revenue events (sorted by date)
         """
         events = []
+
+        # Load payment overrides for customer payments
+        # Use provided overrides if given (for testing), otherwise load from DB
+        if payment_overrides is None:
+            overrides = get_payment_overrides(override_type='customer')
+        else:
+            overrides = payment_overrides
+
+        # Create a lookup dict: (customer_id, original_date) -> override
+        override_lookup = {}
+        for override in overrides:
+            key = (override['contract_id'], override['original_date'])
+            override_lookup[key] = override
 
         for contract in contracts:
             # Skip inactive contracts
@@ -196,6 +213,17 @@ class RevenueCalculator:
                     invoice_date,
                     contract.payment_terms_days
                 )
+
+                # Check for payment override
+                override_key = (contract.id, payment_date)
+                if override_key in override_lookup:
+                    override = override_lookup[override_key]
+                    if override['action'] == 'skip':
+                        # Skip this payment entirely
+                        continue
+                    elif override['action'] == 'move' and override['new_date']:
+                        # Move to new date
+                        payment_date = override['new_date']
 
                 # Only include if payment falls within projection period
                 if start_date <= payment_date <= end_date:

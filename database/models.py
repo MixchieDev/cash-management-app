@@ -15,6 +15,22 @@ from sqlalchemy.orm import relationship
 Base = declarative_base()
 
 
+class Entity(Base):
+    """Legal entity configuration - editable from dashboard."""
+    __tablename__ = 'entities'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    short_code = Column(String(50), unique=True, nullable=False)
+    full_name = Column(String(200), nullable=False)
+    is_active = Column(Boolean, default=True)
+    display_order = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def __repr__(self):
+        return f"<Entity(short_code={self.short_code}, full_name={self.full_name})>"
+
+
 class CustomerContract(Base):
     """Customer contract with recurring revenue."""
     __tablename__ = 'customer_contracts'
@@ -63,7 +79,6 @@ class VendorContract(Base):
     frequency = Column(String, nullable=False)
     due_date = Column(Date, nullable=False)
     start_date = Column(Date, nullable=True)  # Date when vendor expense becomes active
-    end_date = Column(Date, nullable=True)  # Date when vendor expense ends (null = continues indefinitely)
     entity = Column(String, nullable=False)
     priority = Column(Integer, default=3)
     flexibility_days = Column(Integer, default=0)
@@ -220,48 +235,40 @@ class SystemMetadata(Base):
         return f"<SystemMetadata(key={self.key}, value={self.value})>"
 
 
-class PaymentOverride(Base):
-    """One-off payment date override for customer or vendor payment."""
-    __tablename__ = 'payment_overrides'
+class AppSettings(Base):
+    """Application settings editable from dashboard."""
+    __tablename__ = 'app_settings'
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-
-    # Type: 'customer' or 'vendor'
-    override_type = Column(String, nullable=False)
-
-    # Reference to the contract (can be customer_contract_id or vendor_contract_id)
-    contract_id = Column(Integer, nullable=False)
-
-    # The original scheduled date being overridden
-    original_date = Column(Date, nullable=False)
-
-    # The new payment date (null = skip payment entirely)
-    new_date = Column(Date, nullable=True)
-
-    # Action: 'move' or 'skip'
-    action = Column(String, nullable=False, default='move')
-
-    # Entity for filtering
-    entity = Column(String, nullable=False)
-
-    # Optional reason/notes
-    reason = Column(Text, nullable=True)
-
-    # Audit fields
-    created_by = Column(String, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    setting_key = Column(String(100), unique=True, nullable=False)
+    setting_value = Column(Text, nullable=False)
+    setting_type = Column(String(20), nullable=False)
+    category = Column(String(50), nullable=False)
+    description = Column(Text, nullable=True)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_by = Column(String(100), nullable=True)
 
     __table_args__ = (
-        CheckConstraint("override_type IN ('customer', 'vendor')",
-                       name='ck_override_type'),
-        CheckConstraint("action IN ('move', 'skip')",
-                       name='ck_override_action'),
-        CheckConstraint("entity IN ('YAHSHUA', 'ABBA')",
-                       name='ck_override_entity'),
-        # Unique constraint: only one override per contract + original date + type
-        UniqueConstraint('override_type', 'contract_id', 'original_date',
-                        name='uq_override_contract_date'),
+        CheckConstraint(
+            "setting_type IN ('string', 'integer', 'decimal', 'boolean', 'json')",
+            name='ck_setting_type'
+        ),
     )
 
     def __repr__(self):
-        return f"<PaymentOverride(id={self.id}, type={self.override_type}, action={self.action}, original={self.original_date})>"
+        return f"<AppSettings(key={self.setting_key}, category={self.category})>"
+
+
+class SettingsAuditLog(Base):
+    """Audit log for settings changes."""
+    __tablename__ = 'settings_audit_log'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    setting_key = Column(String(100), nullable=False)
+    old_value = Column(Text, nullable=True)
+    new_value = Column(Text, nullable=False)
+    changed_by = Column(String(100), nullable=True)
+    changed_at = Column(DateTime, default=datetime.utcnow)
+
+    def __repr__(self):
+        return f"<SettingsAuditLog(key={self.setting_key}, changed_at={self.changed_at})>"

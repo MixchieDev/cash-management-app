@@ -44,8 +44,8 @@ class CustomerContract(Base):
     status = Column(String, nullable=False)
     who_acquired = Column(String, nullable=False)
     entity = Column(String, nullable=False)
-    invoice_day = Column(Integer, default=15)
-    payment_terms_days = Column(Integer, default=30)
+    invoice_day = Column(Integer, nullable=True)  # None = use global setting
+    payment_terms_days = Column(Integer, nullable=True)  # None = use global setting
     reliability_score = Column(Numeric(3, 2), default=0.80)
     notes = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -58,7 +58,7 @@ class CustomerContract(Base):
                        name='ck_customer_status'),
         CheckConstraint("entity IN ('YAHSHUA', 'ABBA')",
                        name='ck_customer_entity'),
-        CheckConstraint("invoice_day BETWEEN 1 AND 28",
+        CheckConstraint("invoice_day IS NULL OR invoice_day BETWEEN 1 AND 28",
                        name='ck_invoice_day'),
         CheckConstraint("reliability_score BETWEEN 0 AND 1",
                        name='ck_reliability_score'),

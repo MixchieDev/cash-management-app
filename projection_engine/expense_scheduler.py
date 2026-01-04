@@ -52,19 +52,34 @@ class ExpenseScheduler:
         """
         payment_dates = []
 
+        # Determine the effective start date (maximum of projection start and contract start)
+        effective_start_date = start_date
+        if hasattr(contract, 'start_date') and contract.start_date:
+            effective_start_date = max(start_date, contract.start_date)
+
+        # Determine the effective end date (minimum of projection end and contract end)
+        effective_end_date = end_date
+        if hasattr(contract, 'end_date') and contract.end_date:
+            effective_end_date = min(end_date, contract.end_date)
+
+        # If effective start is after effective end, no payments in range
+        if effective_start_date > effective_end_date:
+            return payment_dates
+
         # Get frequency in days
         frequency_days = EXPENSE_FREQUENCIES.get(contract.frequency)
 
         if frequency_days is None:  # One-time payment
-            if start_date <= contract.due_date <= end_date:
+            # Check if due_date is within effective period
+            if effective_start_date <= contract.due_date <= effective_end_date:
                 payment_dates.append(contract.due_date)
             return payment_dates
 
         # Recurring payment
         current_date = contract.due_date
 
-        # Start from the first payment on or after start_date
-        while current_date < start_date:
+        # Start from the first payment on or after effective_start_date
+        while current_date < effective_start_date:
             if contract.frequency == 'Monthly':
                 current_date += relativedelta(months=1)
             elif contract.frequency == 'Quarterly':
@@ -74,8 +89,8 @@ class ExpenseScheduler:
             else:
                 current_date += timedelta(days=frequency_days)
 
-        # Generate payment dates
-        while current_date <= end_date:
+        # Generate payment dates (respecting contract end_date)
+        while current_date <= effective_end_date:
             payment_dates.append(current_date)
 
             # Move to next payment date

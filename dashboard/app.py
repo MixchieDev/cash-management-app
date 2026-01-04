@@ -11,7 +11,7 @@ from pathlib import Path
 # Add parent directory to Python path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from auth.authentication import init_session_state, login_form, logout
+from auth.authentication import init_session_state, login_form, login_page, logout
 
 # ═══════════════════════════════════════════════════════════════════
 # PAGE CONFIGURATION
@@ -40,18 +40,19 @@ init_session_state()
 # AUTHENTICATION
 # ═══════════════════════════════════════════════════════════════════
 if not st.session_state.authenticated:
-    # Show login form
+    # Hide sidebar completely on login page
     st.markdown("""
-    <style>
-    .main {
-        max-width: 500px;
-        margin: 0 auto;
-        padding-top: 100px;
-    }
-    </style>
+        <style>
+            [data-testid="stSidebar"] { display: none !important; }
+            [data-testid="stSidebarNav"] { display: none !important; }
+            section[data-testid="stSidebarContent"] { display: none !important; }
+            .css-1d391kg { display: none !important; }
+            [data-testid="collapsedControl"] { display: none !important; }
+        </style>
     """, unsafe_allow_html=True)
 
-    user = login_form()
+    # Show professional login page
+    user = login_page()
 
     if user:
         # Successful login
@@ -60,24 +61,6 @@ if not st.session_state.authenticated:
         st.session_state.name = user['name']
         st.session_state.user_role = user['role']
         st.rerun()
-
-    # Show info about the system
-    st.markdown("---")
-    st.info("""
-    **JESUS Company - Strategic Cash Management**
-
-    A multi-entity cash projection and scenario modeling system for CFO planning.
-
-    Features:
-    - Cash flow projections (daily/weekly/monthly/quarterly)
-    - Scenario modeling (hiring, expenses, revenue changes)
-    - Multi-entity support (YAHSHUA & ABBA)
-    - Strategic planning tools
-
-    **Default Credentials:**
-    - Admin: `admin` / `admin123`
-    - Viewer: `viewer` / `viewer123`
-    """)
 
     st.stop()
 

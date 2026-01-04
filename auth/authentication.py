@@ -80,7 +80,7 @@ def authenticate(username: str, password: str) -> Optional[Dict]:
 
 def login_form() -> Optional[Dict]:
     """
-    Display login form and handle authentication.
+    Display login form and handle authentication (legacy).
 
     Returns:
         User dict if logged in, None otherwise
@@ -100,6 +100,83 @@ def login_form() -> Optional[Dict]:
             else:
                 st.error("Invalid username or password")
                 return None
+
+    return None
+
+
+def login_page() -> Optional[Dict]:
+    """
+    Display professional login page with centered card design.
+
+    Returns:
+        User dict if logged in, None otherwise
+    """
+    # Center the login card using columns
+    col1, col2, col3 = st.columns([1, 1.5, 1])
+
+    with col2:
+        # Add vertical spacing
+        st.markdown("<div style='height: 8vh'></div>", unsafe_allow_html=True)
+
+        # Login card with branding
+        st.markdown("""
+            <div style="
+                background: #FFFFFF;
+                border-radius: 20px;
+                padding: 48px 40px 32px 40px;
+                box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12);
+                text-align: center;
+                margin-bottom: 24px;
+            ">
+                <div style="font-size: 56px; margin-bottom: 20px;">💼</div>
+                <h1 style="
+                    font-size: 26px;
+                    font-weight: 600;
+                    margin-bottom: 8px;
+                    color: #1D1D1F;
+                    font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
+                ">JESUS Company</h1>
+                <p style="
+                    color: #86868B;
+                    font-size: 15px;
+                    margin: 0;
+                    font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
+                ">Cash Management System</p>
+            </div>
+        """, unsafe_allow_html=True)
+
+        # Login form
+        with st.form("login_form", clear_on_submit=False):
+            username = st.text_input("Username", placeholder="Enter your username")
+            password = st.text_input("Password", type="password", placeholder="Enter your password")
+
+            st.markdown("<div style='height: 8px'></div>", unsafe_allow_html=True)
+
+            submit = st.form_submit_button("Sign In", use_container_width=True, type="primary")
+
+            if submit:
+                if not username or not password:
+                    st.error("Please enter both username and password")
+                    return None
+
+                user = authenticate(username, password)
+                if user:
+                    return user
+                else:
+                    st.error("Invalid username or password")
+                    return None
+
+        # Footer
+        st.markdown("""
+            <div style="
+                text-align: center;
+                margin-top: 24px;
+                color: #AEAEB2;
+                font-size: 13px;
+            ">
+                Strategic Financial Planning Tool
+            </div>
+        """, unsafe_allow_html=True)
 
     return None
 

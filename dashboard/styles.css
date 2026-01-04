@@ -74,10 +74,10 @@
    GLOBAL STYLES
    ═══════════════════════════════════════════════════════════════════ */
 
-/* Hide Streamlit branding */
+/* Hide Streamlit branding - but keep header for sidebar toggle */
 #MainMenu {visibility: hidden;}
 footer {visibility: hidden;}
-header {visibility: hidden;}
+/* Note: Don't hide header - it contains the sidebar toggle button */
 
 /* App background */
 .stApp {

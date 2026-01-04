@@ -50,6 +50,14 @@ with col_entity:
         label_visibility="collapsed"
     )
 
+# Get realistic delay from settings for help text
+try:
+    from database.settings_manager import get_payment_terms_config
+    payment_config = get_payment_terms_config()
+    realistic_delay = payment_config.get('realistic_delay_days', 10)
+except Exception:
+    realistic_delay = 10
+
 col1, col2 = st.columns([3, 1])
 with col1:
     scenario_type = st.radio(
@@ -57,7 +65,7 @@ with col1:
         ["Optimistic", "Realistic"],
         horizontal=True,
         key="scenario_type",
-        help="Optimistic: On-time payments | Realistic: 10-day delay"
+        help=f"Optimistic: On-time payments | Realistic: {realistic_delay}-day delay"
     )
 
 # ═══════════════════════════════════════════════════════════════════

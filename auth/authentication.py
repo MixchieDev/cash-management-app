@@ -118,17 +118,13 @@ def login_page() -> Optional[Dict]:
         # Add vertical spacing
         st.markdown("<div style='height: 8vh'></div>", unsafe_allow_html=True)
 
-        # Login card with branding
+        # Branding header (no card)
         st.markdown("""
             <div style="
-                background: #FFFFFF;
-                border-radius: 20px;
-                padding: 48px 40px 32px 40px;
-                box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12);
                 text-align: center;
-                margin-bottom: 24px;
+                margin-bottom: 32px;
             ">
-                <div style="font-size: 56px; margin-bottom: 20px;">💼</div>
+                <div style="font-size: 56px; margin-bottom: 16px;">💼</div>
                 <h1 style="
                     font-size: 26px;
                     font-weight: 600;

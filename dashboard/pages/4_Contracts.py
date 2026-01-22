@@ -54,7 +54,7 @@ with col1:
     st.link_button(
         "📝 Edit Customer Contracts",
         f"{sheets_url}#gid=0",
-        use_container_width=True,
+        width='stretch',
         help="Opens Google Sheets to edit customer contracts"
     )
 
@@ -62,7 +62,7 @@ with col2:
     st.link_button(
         "📝 Edit Vendor Contracts",
         f"{sheets_url}#gid=1",
-        use_container_width=True,
+        width='stretch',
         help="Opens Google Sheets to edit vendor contracts"
     )
 
@@ -70,7 +70,7 @@ with col3:
     st.link_button(
         "📝 Update Bank Balances",
         f"{sheets_url}#gid=2",
-        use_container_width=True,
+        width='stretch',
         help="Opens Google Sheets to update bank balances"
     )
 
@@ -86,7 +86,7 @@ with col1:
         st.caption("Data not yet synced")
 
 with col2:
-    if st.button("↻ Sync from Google Sheets", type="primary", use_container_width=True):
+    if st.button("↻ Sync from Google Sheets", type="primary", width='stretch'):
         with st.spinner("Syncing data from Google Sheets..."):
             try:
                 from data_processing.google_sheets_import import sync_all_data
@@ -147,7 +147,7 @@ try:
 
         st.dataframe(
             df_customers,
-            use_container_width=True,
+            width='stretch',
             hide_index=True
         )
 
@@ -236,7 +236,7 @@ try:
 
         st.dataframe(
             df_vendors,
-            use_container_width=True,
+            width='stretch',
             hide_index=True
         )
 

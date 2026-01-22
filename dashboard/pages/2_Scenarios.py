@@ -283,11 +283,11 @@ if st.session_state.current_scenario['changes']:
     col1, col2, col3 = st.columns(3)
 
     with col1:
-        if st.button("▶️ Run Scenario", type="primary", use_container_width=True):
+        if st.button("▶️ Run Scenario", type="primary", width='stretch'):
             st.info("Scenario calculation will be implemented with backend integration")
 
     with col2:
-        if st.button("💾 Save Scenario", use_container_width=True):
+        if st.button("💾 Save Scenario", width='stretch'):
             if not st.session_state.current_scenario['name']:
                 st.error("Please enter a scenario name before saving")
             else:
@@ -355,7 +355,7 @@ if st.session_state.current_scenario['changes']:
                     st.code(traceback.format_exc())
 
     with col3:
-        if st.button("🗑️ Clear All", use_container_width=True):
+        if st.button("🗑️ Clear All", width='stretch'):
             st.session_state.current_scenario = {'name': '', 'entity': 'YAHSHUA', 'changes': []}
             st.rerun()
 

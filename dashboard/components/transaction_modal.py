@@ -70,7 +70,7 @@ def show_transaction_breakdown_modal(
 
             st.dataframe(
                 df_revenue,
-                use_container_width=True,
+                width='stretch',
                 hide_index=True,
                 column_config={
                     'Date': st.column_config.DateColumn('Date', format='YYYY-MM-DD'),
@@ -106,7 +106,7 @@ def show_transaction_breakdown_modal(
 
             st.dataframe(
                 df_expense,
-                use_container_width=True,
+                width='stretch',
                 hide_index=True,
                 column_config={
                     'Date': st.column_config.DateColumn('Date', format='YYYY-MM-DD'),

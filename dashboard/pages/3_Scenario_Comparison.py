@@ -402,7 +402,7 @@ try:
         df_scenarios = pd.DataFrame(scenario_data)
         st.dataframe(
             df_scenarios,
-            use_container_width=True,
+            width='stretch',
             hide_index=True,
             column_config={
                 "Monthly Expenses": st.column_config.TextColumn(
@@ -470,12 +470,12 @@ try:
 
                         # Build and display chart
                         fig = build_comparison_chart(baseline, combined_projection, entity, combined_name)
-                        st.plotly_chart(fig, use_container_width=True)
+                        st.plotly_chart(fig, width='stretch')
 
                         # Build and display metrics table
                         st.markdown("### Key Metrics Comparison")
                         metrics_df = build_metrics_dataframe(baseline, combined_projection, combined_name)
-                        st.dataframe(metrics_df, use_container_width=True)
+                        st.dataframe(metrics_df, width='stretch')
 
                         # Interpretation guide
                         with st.expander("💡 How to Interpret Results"):

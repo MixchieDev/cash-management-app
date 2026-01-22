@@ -71,7 +71,7 @@ users_data = [
 ]
 
 df_users = pd.DataFrame(users_data)
-st.dataframe(df_users, use_container_width=True, hide_index=True)
+st.dataframe(df_users, width='stretch', hide_index=True)
 
 # ═══════════════════════════════════════════════════════════════════
 # ROLE PERMISSIONS

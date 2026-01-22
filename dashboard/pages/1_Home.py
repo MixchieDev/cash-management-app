@@ -320,7 +320,7 @@ if projection_data:
     # Render chart with click event handling
     selected = st.plotly_chart(
         fig,
-        use_container_width=True,
+        width='stretch',
         on_select="rerun",
         key="cash_flow_chart"
     )
@@ -438,17 +438,17 @@ st.markdown("### Quick Actions")
 col1, col2, col3, col4 = st.columns(4)
 
 with col1:
-    if st.button("➕ Create Scenario", use_container_width=True):
+    if st.button("➕ Create Scenario", width='stretch'):
         st.switch_page("pages/2_Scenarios.py")
 
 with col2:
-    if st.button("📊 Compare Scenarios", use_container_width=True):
+    if st.button("📊 Compare Scenarios", width='stretch'):
         st.switch_page("pages/3_Scenario_Comparison.py")
 
 with col3:
-    if st.button("📄 View Contracts", use_container_width=True):
+    if st.button("📄 View Contracts", width='stretch'):
         st.switch_page("pages/4_Contracts.py")
 
 with col4:
-    if st.button("🎯 Strategic Planning", use_container_width=True):
+    if st.button("🎯 Strategic Planning", width='stretch'):
         st.switch_page("pages/6_Strategic.py")

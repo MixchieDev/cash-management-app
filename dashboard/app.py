@@ -91,7 +91,7 @@ with st.sidebar:
     st.markdown("---")
 
     # Logout button
-    if st.button("Logout", use_container_width=True):
+    if st.button("Logout", width='stretch'):
         logout()
         st.rerun()
 

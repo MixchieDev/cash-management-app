@@ -91,7 +91,7 @@ def login_form() -> Optional[Dict]:
     with st.form("login_form"):
         username = st.text_input("Username")
         password = st.text_input("Password", type="password")
-        submit = st.form_submit_button("Login", use_container_width=True)
+        submit = st.form_submit_button("Login", width='stretch')
 
         if submit:
             user = authenticate(username, password)
@@ -148,7 +148,7 @@ def login_page() -> Optional[Dict]:
 
             st.markdown("<div style='height: 8px'></div>", unsafe_allow_html=True)
 
-            submit = st.form_submit_button("Sign In", use_container_width=True, type="primary")
+            submit = st.form_submit_button("Sign In", width='stretch', type="primary")
 
             if submit:
                 if not username or not password:

@@ -624,7 +624,7 @@ def render_audit_log_tab() -> None:
     df = pd.DataFrame(audit_entries)
     df.columns = ['Setting', 'Old Value', 'New Value', 'Changed By', 'Changed At']
 
-    st.dataframe(df, use_container_width=True, hide_index=True)
+    st.dataframe(df, width='stretch', hide_index=True)
 
 
 def main() -> None:

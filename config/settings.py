@@ -16,17 +16,31 @@ PROJECT_ROOT = Path(__file__).parent.parent
 DATA_DIR = PROJECT_ROOT / "data"
 LOGS_DIR = PROJECT_ROOT / "logs"
 
-# Detect Streamlit Cloud (read-only filesystem except /tmp)
-IS_STREAMLIT_CLOUD = os.getenv("STREAMLIT_SHARING_MODE") or os.path.exists("/mount/src")
+# Determine writable database directory
+# Try default location first, fall back to /tmp if not writable
+_default_db_dir = PROJECT_ROOT / "database"
+_tmp_db_dir = Path("/tmp/cash_management_db")
 
-if IS_STREAMLIT_CLOUD:
-    # Use /tmp for writable storage on Streamlit Cloud
-    DATABASE_DIR = Path("/tmp/cash_management_db")
+def _is_dir_writable(path: Path) -> bool:
+    """Check if directory is writable by attempting to create a test file."""
+    try:
+        path.mkdir(exist_ok=True)
+        test_file = path / ".write_test"
+        test_file.write_text("test")
+        test_file.unlink()
+        return True
+    except (OSError, PermissionError):
+        return False
+
+if _is_dir_writable(_default_db_dir):
+    DATABASE_DIR = _default_db_dir
 else:
-    DATABASE_DIR = PROJECT_ROOT / "database"
+    # Filesystem is read-only (e.g., Streamlit Cloud), use /tmp
+    DATABASE_DIR = _tmp_db_dir
+    DATABASE_DIR.mkdir(exist_ok=True)
 
-# Create directories if they don't exist
-for directory in [DATABASE_DIR, DATA_DIR, LOGS_DIR]:
+# Create other directories if they don't exist
+for directory in [DATA_DIR, LOGS_DIR]:
     try:
         directory.mkdir(exist_ok=True)
     except OSError:

@@ -17,19 +17,43 @@ DATA_DIR = PROJECT_ROOT / "data"
 LOGS_DIR = PROJECT_ROOT / "logs"
 
 # Determine writable database directory
-# Streamlit Cloud mounts code at /mount/src - use /tmp there
 _default_db_dir = PROJECT_ROOT / "database"
 _tmp_db_dir = Path("/tmp/cash_management_db")
+_default_db_file = _default_db_dir / "jesus_cash_management.db"
 
-# Detect Streamlit Cloud: code is mounted at /mount/src
-_is_streamlit_cloud = str(PROJECT_ROOT).startswith("/mount/src")
+def _can_write_to_db() -> bool:
+    """Check if we can actually write to the database file."""
+    try:
+        # If db file exists, check if we can open it for writing
+        if _default_db_file.exists():
+            with open(_default_db_file, 'a') as f:
+                pass  # Just try to open for append
+            return True
+        else:
+            # File doesn't exist, check if we can create in directory
+            _default_db_dir.mkdir(exist_ok=True)
+            test_file = _default_db_dir / ".write_test"
+            test_file.write_text("test")
+            test_file.unlink()
+            return True
+    except (OSError, PermissionError, IOError):
+        return False
 
-if _is_streamlit_cloud:
-    # Streamlit Cloud: deployed files are read-only, use /tmp
+# Multiple detection methods for cloud environment
+_is_cloud = (
+    os.path.exists("/mount/src") or  # Streamlit Cloud mount point
+    os.getenv("HOME") == "/home/appuser" or  # Streamlit Cloud home
+    not _can_write_to_db()  # Can't write = must use /tmp
+)
+
+if _is_cloud:
+    # Cloud environment: use /tmp for writable database
     DATABASE_DIR = _tmp_db_dir
     DATABASE_DIR.mkdir(exist_ok=True)
+    print(f"[DB] Using cloud database path: {DATABASE_DIR}")
 else:
     DATABASE_DIR = _default_db_dir
+    print(f"[DB] Using local database path: {DATABASE_DIR}")
 
 # Create other directories if they don't exist
 for directory in [DATA_DIR, LOGS_DIR]:

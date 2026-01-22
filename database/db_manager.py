@@ -181,11 +181,15 @@ class DatabaseManager:
 
 
 # Global database instance
+print(f"[DB] Initializing database with URL: {DATABASE_URL}")
 db_manager = DatabaseManager()
 
 # Auto-initialize schema if tables don't exist (needed for Streamlit Cloud /tmp database)
 if not db_manager.table_exists('customer_contracts'):
+    print("[DB] Tables don't exist, initializing schema...")
     db_manager.init_schema()
+else:
+    print("[DB] Tables already exist")
 
 
 def get_db() -> Generator[Session, None, None]:

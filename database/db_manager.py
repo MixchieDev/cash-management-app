@@ -188,8 +188,18 @@ db_manager = DatabaseManager()
 if not db_manager.table_exists('customer_contracts'):
     print("[DB] Tables don't exist, initializing schema...")
     db_manager.init_schema()
+
+    # Initialize entities table with default entities (delayed import to avoid circular import)
+    print("[DB] Initializing entities table...")
+    from database.settings_manager import init_entities_table
+    init_entities_table()
 else:
     print("[DB] Tables already exist")
+    # Ensure entities exist even if tables already exist
+    if not db_manager.table_exists('entities'):
+        print("[DB] Entities table missing, initializing...")
+        from database.settings_manager import init_entities_table
+        init_entities_table()
 
 
 def get_db() -> Generator[Session, None, None]:

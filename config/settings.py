@@ -17,27 +17,19 @@ DATA_DIR = PROJECT_ROOT / "data"
 LOGS_DIR = PROJECT_ROOT / "logs"
 
 # Determine writable database directory
-# Try default location first, fall back to /tmp if not writable
+# Streamlit Cloud mounts code at /mount/src - use /tmp there
 _default_db_dir = PROJECT_ROOT / "database"
 _tmp_db_dir = Path("/tmp/cash_management_db")
 
-def _is_dir_writable(path: Path) -> bool:
-    """Check if directory is writable by attempting to create a test file."""
-    try:
-        path.mkdir(exist_ok=True)
-        test_file = path / ".write_test"
-        test_file.write_text("test")
-        test_file.unlink()
-        return True
-    except (OSError, PermissionError):
-        return False
+# Detect Streamlit Cloud: code is mounted at /mount/src
+_is_streamlit_cloud = str(PROJECT_ROOT).startswith("/mount/src")
 
-if _is_dir_writable(_default_db_dir):
-    DATABASE_DIR = _default_db_dir
-else:
-    # Filesystem is read-only (e.g., Streamlit Cloud), use /tmp
+if _is_streamlit_cloud:
+    # Streamlit Cloud: deployed files are read-only, use /tmp
     DATABASE_DIR = _tmp_db_dir
     DATABASE_DIR.mkdir(exist_ok=True)
+else:
+    DATABASE_DIR = _default_db_dir
 
 # Create other directories if they don't exist
 for directory in [DATA_DIR, LOGS_DIR]:

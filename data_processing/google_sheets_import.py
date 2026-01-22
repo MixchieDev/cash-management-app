@@ -338,6 +338,16 @@ def import_vendor_contracts(save_to_db: bool = True) -> List[Dict]:
                 # No start date = vendor is already active (use None)
                 start_date_obj = None
 
+            # Parse end_date (optional field)
+            # If empty/null, vendor expense continues indefinitely
+            # If specified, vendor expense stops after this date
+            end_date_value = row.get('End Date')
+            if not pd.isna(end_date_value) and str(end_date_value).strip():
+                end_date_obj = parse_date(str(end_date_value))
+            else:
+                # No end date = vendor expense continues indefinitely
+                end_date_obj = None
+
             # Parse frequency and convert to title case (database constraint requirement)
             # Google Sheets may have "MONTHLY", "QUARTERLY" etc - convert to "Monthly", "Quarterly"
             frequency_value = str(row['Frequency']).strip().title()
@@ -384,6 +394,7 @@ def import_vendor_contracts(save_to_db: bool = True) -> List[Dict]:
                 'frequency': frequency_value,
                 'due_date': due_date_obj,
                 'start_date': start_date_obj,
+                'end_date': end_date_obj,
                 'entity': entity_value,
                 'priority': int(row.get('Priority', 3)) if not pd.isna(row.get('Priority')) else 3,
                 'flexibility_days': int(row.get('Flexibility Days', 0)) if not pd.isna(row.get('Flexibility Days')) else 0,

@@ -13,13 +13,24 @@ load_dotenv()
 # PROJECT PATHS
 # ═══════════════════════════════════════════════════════════════════
 PROJECT_ROOT = Path(__file__).parent.parent
-DATABASE_DIR = PROJECT_ROOT / "database"
 DATA_DIR = PROJECT_ROOT / "data"
 LOGS_DIR = PROJECT_ROOT / "logs"
 
+# Detect Streamlit Cloud (read-only filesystem except /tmp)
+IS_STREAMLIT_CLOUD = os.getenv("STREAMLIT_SHARING_MODE") or os.path.exists("/mount/src")
+
+if IS_STREAMLIT_CLOUD:
+    # Use /tmp for writable storage on Streamlit Cloud
+    DATABASE_DIR = Path("/tmp/cash_management_db")
+else:
+    DATABASE_DIR = PROJECT_ROOT / "database"
+
 # Create directories if they don't exist
 for directory in [DATABASE_DIR, DATA_DIR, LOGS_DIR]:
-    directory.mkdir(exist_ok=True)
+    try:
+        directory.mkdir(exist_ok=True)
+    except OSError:
+        pass  # Directory may be read-only on cloud deployments
 
 # ═══════════════════════════════════════════════════════════════════
 # DATABASE CONFIGURATION

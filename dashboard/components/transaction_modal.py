@@ -62,8 +62,7 @@ def show_transaction_breakdown_modal(
                     'Customer': event.company_name,
                     'Amount': format_currency(event.amount),
                     'Payment Plan': event.payment_plan,
-                    'Entity': event.entity,
-                    'Invoice Date': event.invoice_date.strftime('%Y-%m-%d') if event.invoice_date else 'N/A'
+                    'Entity': event.entity
                 })
 
             df_revenue = pd.DataFrame(revenue_data)

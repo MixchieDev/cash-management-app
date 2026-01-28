@@ -159,17 +159,16 @@ class TestPaymentTermsIntegration:
     """Tests for payment terms settings integration with revenue calculator."""
 
     def test_revenue_calculator_uses_database_settings(self):
-        """RevenueCalculator should use payment terms from database."""
+        """RevenueCalculator should use realistic_delay_days from database."""
         from projection_engine.revenue_calculator import RevenueCalculator
 
-        # Set custom payment terms
-        set_setting('invoice_lead_days', 20, 'integer', 'payment_terms', updated_by='Test')
+        # Set custom realistic delay
         set_setting('realistic_delay_days', 15, 'integer', 'payment_terms', updated_by='Test')
 
         # Create calculator (should read from database)
         calc = RevenueCalculator(scenario_type='realistic')
 
-        assert calc.invoice_lead_days == 20
+        # Payment uses contract start day + realistic delay
         assert calc.payment_delay_days == 15
 
     def test_optimistic_scenario_has_zero_delay(self):
@@ -188,21 +187,35 @@ class TestPaymentTermsIntegration:
         calc = RevenueCalculator(scenario_type='realistic')
         assert calc.payment_delay_days == 12
 
-    def test_invoice_date_calculation_uses_settings(self):
-        """Invoice date calculation should use invoice_lead_days from settings."""
+    def test_payment_date_uses_contract_start_day(self):
+        """Payment date should be based on contract start day."""
         from projection_engine.revenue_calculator import RevenueCalculator
 
-        # Set invoice day to 20th of month
-        set_setting('invoice_lead_days', 20, 'integer', 'payment_terms', updated_by='Test')
+        # Create calculator with realistic scenario (10-day delay by default)
+        set_setting('realistic_delay_days', 10, 'integer', 'payment_terms', updated_by='Test')
+        calc = RevenueCalculator(scenario_type='realistic')
 
-        calc = RevenueCalculator()
+        # Contract started on March 5, billing for April
+        contract_start = date(2026, 3, 5)
+        billing_month = date(2026, 4, 1)
+        payment_date = calc.calculate_payment_date(billing_month, contract_start)
 
-        # Invoice for March 2026 billing is sent on 20th of PREVIOUS month (February)
-        billing_month = date(2026, 3, 1)
-        invoice_date = calc.calculate_invoice_date(billing_month)
+        # Payment on 5th + 10 day delay = 15th
+        assert payment_date == date(2026, 4, 15)
 
-        # With invoice_lead_days=20, invoice is sent on Feb 20
-        assert invoice_date == date(2026, 2, 20)
+    def test_optimistic_payment_date_no_delay(self):
+        """Optimistic scenario should have no delay on payment date."""
+        from projection_engine.revenue_calculator import RevenueCalculator
+
+        calc = RevenueCalculator(scenario_type='optimistic')
+
+        # Contract started on March 5, billing for April
+        contract_start = date(2026, 3, 5)
+        billing_month = date(2026, 4, 1)
+        payment_date = calc.calculate_payment_date(billing_month, contract_start)
+
+        # No delay in optimistic = payment on 5th
+        assert payment_date == date(2026, 4, 5)
 
 
 # ═══════════════════════════════════════════════════════════════════

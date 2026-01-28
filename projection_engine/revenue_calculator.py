@@ -60,8 +60,6 @@ class RevenueCalculator:
 
         # Load settings from database
         settings = _get_payment_terms_settings()
-        self.invoice_lead_days = settings['invoice_lead_days']
-        self.payment_terms_days = settings['payment_terms_days']  # Global default
 
         # Determine payment delay based on scenario
         if scenario_type == 'optimistic':
@@ -69,63 +67,40 @@ class RevenueCalculator:
         else:  # realistic
             self.payment_delay_days = settings['realistic_delay_days']  # Default: 10 days
 
-    def calculate_invoice_date(self, billing_month: date, invoice_day: Optional[int] = None) -> date:
+    def calculate_payment_date(self, billing_month: date, contract_start: date) -> date:
         """
-        Calculate invoice date for a billing month.
+        Calculate payment date based on contract start day.
 
-        Invoice is sent on a specific day of the month BEFORE the billing month.
+        Payment is received on the same day of month as the contract started,
+        plus any delay for realistic scenario.
 
         Args:
-            billing_month: Month being billed (e.g., March 2026)
-            invoice_day: Day of month to send invoice (from customer contract).
-                        If None, uses global invoice_lead_days setting.
+            billing_month: The month being billed (e.g., March 2026)
+            contract_start: Contract start date (use day of month)
 
         Returns:
-            Invoice date (e.g., Feb 15 for March billing if invoice_day=15)
+            Payment date for this billing month
 
         Example:
-            >>> calc = RevenueCalculator()
-            >>> calc.calculate_invoice_date(date(2026, 3, 1), invoice_day=15)
-            date(2026, 2, 15)
-        """
-        # Go back to previous month
-        previous_month = billing_month - relativedelta(months=1)
-
-        # Use customer's invoice_day if provided, otherwise use global setting
-        day_of_invoice = invoice_day if invoice_day is not None else self.invoice_lead_days
-
-        # Ensure day is valid for the month (handle months with fewer days)
-        from calendar import monthrange
-        max_day = monthrange(previous_month.year, previous_month.month)[1]
-        day_of_invoice = min(day_of_invoice, max_day)
-
-        invoice_date = date(previous_month.year, previous_month.month, day_of_invoice)
-
-        return invoice_date
-
-    def calculate_payment_date(self, invoice_date: date, payment_terms_days: int) -> date:
-        """
-        Calculate expected payment date.
-
-        Args:
-            invoice_date: Date invoice was sent
-            payment_terms_days: Payment terms (typically Net 30)
-
-        Returns:
-            Expected payment date (with delay if realistic scenario)
-
-        Example:
+            Contract starts March 5 with realistic scenario (10-day delay):
             >>> calc = RevenueCalculator(scenario_type='realistic')
-            >>> calc.calculate_payment_date(date(2026, 2, 15), 30)
-            date(2026, 3, 27)  # Feb 15 + 30 days + 10 day delay = Mar 27
+            >>> calc.calculate_payment_date(date(2026, 4, 1), date(2026, 3, 5))
+            date(2026, 4, 15)  # 5th + 10 day delay = 15th
         """
-        # Base payment date (invoice + payment terms)
-        base_payment_date = invoice_date + timedelta(days=payment_terms_days)
+        from calendar import monthrange
 
-        # Add delay based on scenario
-        actual_payment_date = base_payment_date + timedelta(days=self.payment_delay_days)
+        # Use the day of month from contract_start
+        payment_day = contract_start.day
 
-        return actual_payment_date
+        # Cap at max days in the billing month (handle Feb, etc.)
+        max_day = monthrange(billing_month.year, billing_month.month)[1]
+        payment_day = min(payment_day, max_day)
+
+        # Payment is on that day of the billing month
+        base_payment_date = date(billing_month.year, billing_month.month, payment_day)
+
+        # Add delay for realistic scenario
+        return base_payment_date + timedelta(days=self.payment_delay_days)
 
     def get_billing_months(self, contract: CustomerContract, start_date: date, end_date: date) -> List[date]:
         """
@@ -215,19 +190,9 @@ class RevenueCalculator:
             billing_months = self.get_billing_months(contract, start_date, end_date)
 
             for billing_month in billing_months:
-                # Calculate invoice date using customer's invoice_day setting (or global default)
-                customer_invoice_day = getattr(contract, 'invoice_day', None)
-                invoice_date = self.calculate_invoice_date(billing_month, customer_invoice_day)
-
-                # Use customer's payment terms or fall back to global setting
-                customer_payment_terms = getattr(contract, 'payment_terms_days', None)
-                effective_payment_terms = customer_payment_terms if customer_payment_terms is not None else self.payment_terms_days
-
-                # Calculate payment date
-                payment_date = self.calculate_payment_date(
-                    invoice_date,
-                    effective_payment_terms
-                )
+                # Calculate payment date based on contract start day
+                # Payment is received on the same day of month as contract started
+                payment_date = self.calculate_payment_date(billing_month, contract.contract_start)
 
                 # Check for payment override
                 override_key = (contract.id, payment_date)
@@ -256,7 +221,7 @@ class RevenueCalculator:
                         entity=contract.entity,
                         event_type='payment',
                         payment_plan=contract.payment_plan,
-                        invoice_date=invoice_date
+                        invoice_date=None  # Simplified: no separate invoice date tracking
                     )
                     events.append(event)
 

@@ -2,13 +2,28 @@
 Database query functions for dashboard.
 Provides convenient functions to fetch data for the Streamlit dashboard.
 """
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Tuple
 from datetime import date
 from decimal import Decimal
 from sqlalchemy import desc
 
 from database.db_manager import db_manager
-from database.models import CustomerContract, VendorContract, BankBalance, Scenario, PaymentOverride
+from database.models import CustomerContract, VendorContract, BankBalance, Scenario, ScenarioChange, PaymentOverride, User, UserPermission
+from data_processing.data_validator import DataValidator
+
+
+def invalidate_projection_cache() -> None:
+    """
+    Clear the projection cache in Streamlit session state.
+    Called after any data modification (create/update/delete).
+    """
+    try:
+        import streamlit as st
+        if '_projection_cache' in st.session_state:
+            st.session_state['_projection_cache'] = {}
+    except (ImportError, RuntimeError):
+        # Not running in Streamlit context
+        pass
 
 
 def get_customers(entity: Optional[str] = None, status: str = 'Active') -> List[Dict]:
@@ -546,3 +561,802 @@ def get_vendor_by_id(vendor_id: int) -> Optional[Dict]:
             'status': v.status,
             'notes': v.notes
         }
+
+
+# ═══════════════════════════════════════════════════════════════════
+# CUSTOMER CONTRACT CRUD
+# ═══════════════════════════════════════════════════════════════════
+
+def create_customer_contract(data: Dict) -> Dict:
+    """
+    Create a new customer contract.
+
+    Args:
+        data: Customer contract data dictionary with keys:
+            company_name, monthly_fee (Decimal), payment_plan, contract_start (date),
+            status, who_acquired, entity, and optional: contract_end, invoice_day,
+            payment_terms_days, reliability_score, notes, source, created_by
+
+    Returns:
+        Dictionary of the created customer contract
+
+    Raises:
+        ValueError: If validation fails
+    """
+    is_valid, error = DataValidator.validate_customer_contract(data)
+    if not is_valid:
+        raise ValueError(f"Validation failed: {error}")
+
+    with db_manager.session_scope() as session:
+        contract = CustomerContract(
+            company_name=data['company_name'],
+            monthly_fee=data['monthly_fee'],
+            payment_plan=data['payment_plan'],
+            contract_start=data['contract_start'],
+            contract_end=data.get('contract_end'),
+            status=data['status'],
+            who_acquired=data['who_acquired'],
+            entity=data['entity'],
+            invoice_day=data.get('invoice_day'),
+            payment_terms_days=data.get('payment_terms_days'),
+            reliability_score=data.get('reliability_score', Decimal('0.80')),
+            notes=data.get('notes'),
+            source=data.get('source', 'manual'),
+            created_by=data.get('created_by'),
+        )
+        session.add(contract)
+        session.flush()
+
+        result = {
+            'id': contract.id,
+            'company_name': contract.company_name,
+            'monthly_fee': Decimal(str(contract.monthly_fee)),
+            'payment_plan': contract.payment_plan,
+            'contract_start': contract.contract_start,
+            'contract_end': contract.contract_end,
+            'status': contract.status,
+            'who_acquired': contract.who_acquired,
+            'entity': contract.entity,
+            'invoice_day': contract.invoice_day,
+            'payment_terms_days': contract.payment_terms_days,
+            'reliability_score': float(contract.reliability_score) if contract.reliability_score else 0.80,
+            'notes': contract.notes,
+            'source': contract.source,
+        }
+
+    invalidate_projection_cache()
+    return result
+
+
+def update_customer_contract(customer_id: int, data: Dict) -> Dict:
+    """
+    Update an existing customer contract.
+
+    Args:
+        customer_id: ID of the customer contract to update
+        data: Dictionary of fields to update
+
+    Returns:
+        Updated customer contract dictionary
+
+    Raises:
+        ValueError: If customer not found or validation fails
+    """
+    with db_manager.session_scope() as session:
+        contract = session.query(CustomerContract).filter(
+            CustomerContract.id == customer_id
+        ).first()
+
+        if not contract:
+            raise ValueError(f"Customer contract not found: {customer_id}")
+
+        # Build full data dict for validation (merge existing + updates)
+        full_data = {
+            'company_name': data.get('company_name', contract.company_name),
+            'monthly_fee': data.get('monthly_fee', Decimal(str(contract.monthly_fee))),
+            'payment_plan': data.get('payment_plan', contract.payment_plan),
+            'contract_start': data.get('contract_start', contract.contract_start),
+            'contract_end': data.get('contract_end', contract.contract_end),
+            'status': data.get('status', contract.status),
+            'who_acquired': data.get('who_acquired', contract.who_acquired),
+            'entity': data.get('entity', contract.entity),
+        }
+        if 'invoice_day' in data:
+            full_data['invoice_day'] = data['invoice_day']
+        if 'payment_terms_days' in data:
+            full_data['payment_terms_days'] = data['payment_terms_days']
+        if 'reliability_score' in data:
+            full_data['reliability_score'] = data['reliability_score']
+
+        is_valid, error = DataValidator.validate_customer_contract(full_data)
+        if not is_valid:
+            raise ValueError(f"Validation failed: {error}")
+
+        # Apply updates
+        for key, value in data.items():
+            if hasattr(contract, key) and key != 'id':
+                setattr(contract, key, value)
+
+        session.flush()
+
+        result = {
+            'id': contract.id,
+            'company_name': contract.company_name,
+            'monthly_fee': Decimal(str(contract.monthly_fee)),
+            'payment_plan': contract.payment_plan,
+            'contract_start': contract.contract_start,
+            'contract_end': contract.contract_end,
+            'status': contract.status,
+            'who_acquired': contract.who_acquired,
+            'entity': contract.entity,
+            'invoice_day': contract.invoice_day,
+            'payment_terms_days': contract.payment_terms_days,
+            'reliability_score': float(contract.reliability_score) if contract.reliability_score else 0.80,
+            'notes': contract.notes,
+            'source': contract.source,
+        }
+
+    invalidate_projection_cache()
+    return result
+
+
+def delete_customer_contract(customer_id: int) -> bool:
+    """
+    Soft-delete a customer contract by setting status to 'Cancelled'.
+
+    Args:
+        customer_id: ID of the customer contract
+
+    Returns:
+        True if deactivated, False if not found
+    """
+    with db_manager.session_scope() as session:
+        contract = session.query(CustomerContract).filter(
+            CustomerContract.id == customer_id
+        ).first()
+
+        if not contract:
+            return False
+
+        contract.status = 'Cancelled'
+
+    invalidate_projection_cache()
+    return True
+
+
+# ═══════════════════════════════════════════════════════════════════
+# VENDOR CONTRACT CRUD
+# ═══════════════════════════════════════════════════════════════════
+
+def create_vendor_contract(data: Dict) -> Dict:
+    """
+    Create a new vendor contract.
+
+    Args:
+        data: Vendor contract data dictionary with keys:
+            vendor_name, category, amount (Decimal), frequency, due_date (date),
+            entity, and optional: start_date, end_date, priority, flexibility_days,
+            status, notes, source, created_by
+
+    Returns:
+        Dictionary of the created vendor contract
+
+    Raises:
+        ValueError: If validation fails
+    """
+    is_valid, error = DataValidator.validate_vendor_contract(data)
+    if not is_valid:
+        raise ValueError(f"Validation failed: {error}")
+
+    with db_manager.session_scope() as session:
+        contract = VendorContract(
+            vendor_name=data['vendor_name'],
+            category=data['category'],
+            amount=data['amount'],
+            frequency=data['frequency'],
+            due_date=data['due_date'],
+            start_date=data.get('start_date'),
+            end_date=data.get('end_date'),
+            entity=data['entity'],
+            priority=data.get('priority', 3),
+            flexibility_days=data.get('flexibility_days', 0),
+            status=data.get('status', 'Active'),
+            notes=data.get('notes'),
+            source=data.get('source', 'manual'),
+            created_by=data.get('created_by'),
+        )
+        session.add(contract)
+        session.flush()
+
+        result = {
+            'id': contract.id,
+            'vendor_name': contract.vendor_name,
+            'category': contract.category,
+            'amount': Decimal(str(contract.amount)),
+            'frequency': contract.frequency,
+            'due_date': contract.due_date,
+            'start_date': contract.start_date,
+            'end_date': contract.end_date,
+            'entity': contract.entity,
+            'priority': contract.priority,
+            'flexibility_days': contract.flexibility_days,
+            'status': contract.status,
+            'notes': contract.notes,
+            'source': contract.source,
+        }
+
+    invalidate_projection_cache()
+    return result
+
+
+def update_vendor_contract(vendor_id: int, data: Dict) -> Dict:
+    """
+    Update an existing vendor contract.
+
+    Args:
+        vendor_id: ID of the vendor contract to update
+        data: Dictionary of fields to update
+
+    Returns:
+        Updated vendor contract dictionary
+
+    Raises:
+        ValueError: If vendor not found or validation fails
+    """
+    with db_manager.session_scope() as session:
+        contract = session.query(VendorContract).filter(
+            VendorContract.id == vendor_id
+        ).first()
+
+        if not contract:
+            raise ValueError(f"Vendor contract not found: {vendor_id}")
+
+        # Build full data dict for validation
+        full_data = {
+            'vendor_name': data.get('vendor_name', contract.vendor_name),
+            'category': data.get('category', contract.category),
+            'amount': data.get('amount', Decimal(str(contract.amount))),
+            'frequency': data.get('frequency', contract.frequency),
+            'due_date': data.get('due_date', contract.due_date),
+            'entity': data.get('entity', contract.entity),
+        }
+        if 'priority' in data:
+            full_data['priority'] = data['priority']
+        if 'flexibility_days' in data:
+            full_data['flexibility_days'] = data['flexibility_days']
+
+        is_valid, error = DataValidator.validate_vendor_contract(full_data)
+        if not is_valid:
+            raise ValueError(f"Validation failed: {error}")
+
+        # Apply updates
+        for key, value in data.items():
+            if hasattr(contract, key) and key != 'id':
+                setattr(contract, key, value)
+
+        session.flush()
+
+        result = {
+            'id': contract.id,
+            'vendor_name': contract.vendor_name,
+            'category': contract.category,
+            'amount': Decimal(str(contract.amount)),
+            'frequency': contract.frequency,
+            'due_date': contract.due_date,
+            'start_date': contract.start_date,
+            'end_date': contract.end_date,
+            'entity': contract.entity,
+            'priority': contract.priority,
+            'flexibility_days': contract.flexibility_days,
+            'status': contract.status,
+            'notes': contract.notes,
+            'source': contract.source,
+        }
+
+    invalidate_projection_cache()
+    return result
+
+
+def delete_vendor_contract(vendor_id: int) -> bool:
+    """
+    Soft-delete a vendor contract by setting status to 'Inactive'.
+
+    Args:
+        vendor_id: ID of the vendor contract
+
+    Returns:
+        True if deactivated, False if not found
+    """
+    with db_manager.session_scope() as session:
+        contract = session.query(VendorContract).filter(
+            VendorContract.id == vendor_id
+        ).first()
+
+        if not contract:
+            return False
+
+        contract.status = 'Inactive'
+
+    invalidate_projection_cache()
+    return True
+
+
+# ═══════════════════════════════════════════════════════════════════
+# BANK BALANCE CRUD
+# ═══════════════════════════════════════════════════════════════════
+
+def get_all_bank_balances(entity: Optional[str] = None) -> List[Dict]:
+    """
+    Get all bank balance entries, ordered by date descending.
+
+    Args:
+        entity: Filter by entity (optional)
+
+    Returns:
+        List of bank balance dictionaries
+    """
+    with db_manager.session_scope() as session:
+        query = session.query(BankBalance)
+
+        if entity and entity != 'All' and entity != 'Consolidated':
+            query = query.filter(BankBalance.entity == entity)
+
+        balances = query.order_by(desc(BankBalance.balance_date)).all()
+
+        return [
+            {
+                'id': b.id,
+                'balance_date': b.balance_date,
+                'entity': b.entity,
+                'balance': Decimal(str(b.balance)),
+                'source': b.source,
+                'notes': b.notes,
+                'created_at': b.created_at,
+            }
+            for b in balances
+        ]
+
+
+def create_bank_balance(data: Dict) -> Dict:
+    """
+    Create a new bank balance entry.
+
+    Args:
+        data: Bank balance data with keys:
+            balance_date (date), entity, balance (Decimal),
+            and optional: source, notes
+
+    Returns:
+        Dictionary of the created bank balance
+
+    Raises:
+        ValueError: If validation fails
+    """
+    is_valid, error = DataValidator.validate_bank_balance(data)
+    if not is_valid:
+        raise ValueError(f"Validation failed: {error}")
+
+    with db_manager.session_scope() as session:
+        balance = BankBalance(
+            balance_date=data['balance_date'],
+            entity=data['entity'],
+            balance=data['balance'],
+            source=data.get('source', 'Manual Entry'),
+            notes=data.get('notes'),
+        )
+        session.add(balance)
+        session.flush()
+
+        result = {
+            'id': balance.id,
+            'balance_date': balance.balance_date,
+            'entity': balance.entity,
+            'balance': Decimal(str(balance.balance)),
+            'source': balance.source,
+            'notes': balance.notes,
+        }
+
+    invalidate_projection_cache()
+    return result
+
+
+def update_bank_balance(balance_id: int, data: Dict) -> Dict:
+    """
+    Update an existing bank balance.
+
+    Args:
+        balance_id: ID of the bank balance to update
+        data: Dictionary of fields to update
+
+    Returns:
+        Updated bank balance dictionary
+
+    Raises:
+        ValueError: If balance not found or validation fails
+    """
+    with db_manager.session_scope() as session:
+        balance = session.query(BankBalance).filter(
+            BankBalance.id == balance_id
+        ).first()
+
+        if not balance:
+            raise ValueError(f"Bank balance not found: {balance_id}")
+
+        # Build full data for validation
+        full_data = {
+            'balance_date': data.get('balance_date', balance.balance_date),
+            'entity': data.get('entity', balance.entity),
+            'balance': data.get('balance', Decimal(str(balance.balance))),
+        }
+
+        is_valid, error = DataValidator.validate_bank_balance(full_data)
+        if not is_valid:
+            raise ValueError(f"Validation failed: {error}")
+
+        for key, value in data.items():
+            if hasattr(balance, key) and key != 'id':
+                setattr(balance, key, value)
+
+        session.flush()
+
+        result = {
+            'id': balance.id,
+            'balance_date': balance.balance_date,
+            'entity': balance.entity,
+            'balance': Decimal(str(balance.balance)),
+            'source': balance.source,
+            'notes': balance.notes,
+        }
+
+    invalidate_projection_cache()
+    return result
+
+
+def delete_bank_balance(balance_id: int) -> bool:
+    """
+    Delete a bank balance entry.
+
+    Args:
+        balance_id: ID of the bank balance to delete
+
+    Returns:
+        True if deleted, False if not found
+    """
+    with db_manager.session_scope() as session:
+        balance = session.query(BankBalance).filter(
+            BankBalance.id == balance_id
+        ).first()
+
+        if not balance:
+            return False
+
+        session.delete(balance)
+
+    invalidate_projection_cache()
+    return True
+
+
+def delete_all_customer_contracts() -> int:
+    """
+    Permanently delete ALL customer contracts.
+
+    Returns:
+        Number of records deleted
+    """
+    with db_manager.session_scope() as session:
+        count = session.query(CustomerContract).delete()
+    invalidate_projection_cache()
+    return count
+
+
+def delete_all_vendor_contracts() -> int:
+    """
+    Permanently delete ALL vendor contracts.
+
+    Returns:
+        Number of records deleted
+    """
+    with db_manager.session_scope() as session:
+        count = session.query(VendorContract).delete()
+    invalidate_projection_cache()
+    return count
+
+
+def delete_all_bank_balances() -> int:
+    """
+    Permanently delete ALL bank balance entries.
+
+    Returns:
+        Number of records deleted
+    """
+    with db_manager.session_scope() as session:
+        count = session.query(BankBalance).delete()
+    invalidate_projection_cache()
+    return count
+
+
+def delete_all_payment_overrides() -> int:
+    """
+    Permanently delete ALL payment overrides.
+
+    Returns:
+        Number of records deleted
+    """
+    with db_manager.session_scope() as session:
+        count = session.query(PaymentOverride).delete()
+    invalidate_projection_cache()
+    return count
+
+
+def delete_all_scenarios() -> int:
+    """
+    Permanently delete ALL scenarios and their changes.
+
+    Returns:
+        Number of scenario records deleted
+    """
+    with db_manager.session_scope() as session:
+        session.query(ScenarioChange).delete()
+        count = session.query(Scenario).delete()
+    return count
+
+
+def delete_all_data() -> Dict[str, int]:
+    """
+    Permanently delete ALL application data (contracts, balances, overrides, scenarios).
+
+    Returns:
+        Dictionary with counts per table
+    """
+    results = {
+        'customers': delete_all_customer_contracts(),
+        'vendors': delete_all_vendor_contracts(),
+        'bank_balances': delete_all_bank_balances(),
+        'payment_overrides': delete_all_payment_overrides(),
+        'scenarios': delete_all_scenarios(),
+    }
+    return results
+
+
+# ═══════════════════════════════════════════════════════════════════
+# USER MANAGEMENT QUERIES
+# ═══════════════════════════════════════════════════════════════════
+
+def get_user_by_username(username: str) -> Optional[Dict]:
+    """
+    Get a user by username, including their permissions.
+
+    Args:
+        username: Username to look up
+
+    Returns:
+        User dictionary with permissions, or None if not found
+    """
+    with db_manager.session_scope() as session:
+        user = session.query(User).filter(User.username == username).first()
+        if not user:
+            return None
+
+        granted_permissions = [
+            p.permission for p in user.permissions if p.granted
+        ]
+
+        return {
+            'id': user.id,
+            'username': user.username,
+            'password_hash': user.password_hash,
+            'name': user.name,
+            'role': user.role,
+            'is_active': user.is_active,
+            'created_at': user.created_at,
+            'permissions': granted_permissions,
+        }
+
+
+def get_all_users() -> List[Dict]:
+    """
+    Get all users with their permissions.
+
+    Returns:
+        List of user dictionaries
+    """
+    with db_manager.session_scope() as session:
+        users = session.query(User).order_by(User.created_at).all()
+
+        return [
+            {
+                'id': u.id,
+                'username': u.username,
+                'name': u.name,
+                'role': u.role,
+                'is_active': u.is_active,
+                'created_at': u.created_at,
+                'permissions': [p.permission for p in u.permissions if p.granted],
+            }
+            for u in users
+        ]
+
+
+def create_user(username: str, password: str, name: str, role: str = 'viewer') -> Dict:
+    """
+    Create a new user with default permissions based on role.
+
+    Args:
+        username: Unique username
+        password: Plain text password (will be hashed)
+        name: Display name
+        role: Role template ('admin', 'editor', 'viewer')
+
+    Returns:
+        Created user dictionary
+
+    Raises:
+        ValueError: If username already exists
+    """
+    import bcrypt
+    from auth.permissions import get_default_permissions, PERMISSION_KEYS
+
+    password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+    default_perms = get_default_permissions(role)
+
+    with db_manager.session_scope() as session:
+        existing = session.query(User).filter(User.username == username).first()
+        if existing:
+            raise ValueError(f"Username already exists: {username}")
+
+        user = User(
+            username=username,
+            password_hash=password_hash,
+            name=name,
+            role=role,
+            is_active=True,
+        )
+        session.add(user)
+        session.flush()
+
+        # Create permission entries for ALL permissions
+        for perm_key in PERMISSION_KEYS:
+            perm = UserPermission(
+                user_id=user.id,
+                permission=perm_key,
+                granted=(perm_key in default_perms),
+            )
+            session.add(perm)
+
+        return {
+            'id': user.id,
+            'username': user.username,
+            'name': user.name,
+            'role': user.role,
+            'is_active': user.is_active,
+            'permissions': default_perms,
+        }
+
+
+def update_user(user_id: int, **kwargs) -> Dict:
+    """
+    Update user fields (name, role, is_active).
+
+    Args:
+        user_id: User ID
+        **kwargs: Fields to update (name, role, is_active)
+
+    Returns:
+        Updated user dictionary
+
+    Raises:
+        ValueError: If user not found
+    """
+    with db_manager.session_scope() as session:
+        user = session.query(User).filter(User.id == user_id).first()
+        if not user:
+            raise ValueError(f"User not found: {user_id}")
+
+        for key, value in kwargs.items():
+            if hasattr(user, key) and key not in ('id', 'username', 'password_hash', 'created_at'):
+                setattr(user, key, value)
+
+        session.flush()
+
+        return {
+            'id': user.id,
+            'username': user.username,
+            'name': user.name,
+            'role': user.role,
+            'is_active': user.is_active,
+            'permissions': [p.permission for p in user.permissions if p.granted],
+        }
+
+
+def update_user_permissions(user_id: int, permissions_dict: Dict[str, bool]) -> None:
+    """
+    Bulk update permissions for a user.
+
+    Args:
+        user_id: User ID
+        permissions_dict: Dict mapping permission key to granted (True/False)
+    """
+    with db_manager.session_scope() as session:
+        user = session.query(User).filter(User.id == user_id).first()
+        if not user:
+            raise ValueError(f"User not found: {user_id}")
+
+        for perm in user.permissions:
+            if perm.permission in permissions_dict:
+                perm.granted = permissions_dict[perm.permission]
+
+
+def reset_user_password(user_id: int, new_password: str) -> None:
+    """
+    Reset a user's password.
+
+    Args:
+        user_id: User ID
+        new_password: New plain text password
+    """
+    import bcrypt
+
+    password_hash = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+
+    with db_manager.session_scope() as session:
+        user = session.query(User).filter(User.id == user_id).first()
+        if not user:
+            raise ValueError(f"User not found: {user_id}")
+        user.password_hash = password_hash
+
+
+def deactivate_user(user_id: int) -> None:
+    """Soft-delete a user by setting is_active=False."""
+    update_user(user_id, is_active=False)
+
+
+def reactivate_user(user_id: int) -> None:
+    """Reactivate a deactivated user."""
+    update_user(user_id, is_active=True)
+
+
+def has_permission(username: str, permission: str) -> bool:
+    """
+    Check if a user has a specific permission.
+
+    Args:
+        username: Username
+        permission: Permission key
+
+    Returns:
+        True if user has the permission granted
+    """
+    user = get_user_by_username(username)
+    if not user:
+        return False
+    return permission in user.get('permissions', [])
+
+
+def auto_seed_admin() -> None:
+    """
+    Create default admin user if no users exist in the database.
+    Called during app initialization.
+    """
+    with db_manager.session_scope() as session:
+        user_count = session.query(User).count()
+        if user_count > 0:
+            return
+
+    # No users exist — create default admin
+    try:
+        create_user(
+            username='admin',
+            password='admin123',
+            name='CFO Mich',
+            role='admin',
+        )
+        # Also create default viewer
+        create_user(
+            username='viewer',
+            password='viewer123',
+            name='Team Viewer',
+            role='viewer',
+        )
+        print("[DB] Default users created (admin/admin123, viewer/viewer123)")
+    except ValueError:
+        pass  # Users already exist

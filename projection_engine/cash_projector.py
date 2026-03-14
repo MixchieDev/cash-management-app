@@ -87,6 +87,137 @@ class CashProjector:
         """Initialize cash projector."""
         pass
 
+    def _get_data_fingerprint(self, entity: str) -> str:
+        """
+        Get a fingerprint of the current data state for cache invalidation.
+
+        Args:
+            entity: Entity code or 'Consolidated'
+
+        Returns:
+            Hash string representing current data state
+        """
+        import hashlib
+        from sqlalchemy import func
+
+        with db_manager.session_scope() as session:
+            parts = []
+
+            # Customer contracts count + latest update
+            cust_query = session.query(
+                func.count(CustomerContract.id),
+                func.max(CustomerContract.updated_at)
+            )
+            if entity and entity != 'Consolidated':
+                cust_query = cust_query.filter(CustomerContract.entity == entity)
+            cust_count, cust_max = cust_query.first()
+            parts.append(f"c:{cust_count}:{cust_max}")
+
+            # Vendor contracts count + latest update
+            vend_query = session.query(
+                func.count(VendorContract.id),
+                func.max(VendorContract.updated_at)
+            )
+            if entity and entity != 'Consolidated':
+                vend_query = vend_query.filter(VendorContract.entity == entity)
+            vend_count, vend_max = vend_query.first()
+            parts.append(f"v:{vend_count}:{vend_max}")
+
+            # Bank balances
+            bal_query = session.query(
+                func.count(BankBalance.id),
+                func.max(BankBalance.created_at)
+            )
+            if entity and entity != 'Consolidated':
+                bal_query = bal_query.filter(BankBalance.entity == entity)
+            bal_count, bal_max = bal_query.first()
+            parts.append(f"b:{bal_count}:{bal_max}")
+
+            fingerprint_str = "|".join(parts)
+            return hashlib.md5(fingerprint_str.encode()).hexdigest()[:12]
+
+    def calculate_cash_projection_cached(
+        self,
+        start_date: date,
+        end_date: date,
+        entity: str,
+        timeframe: str = 'monthly',
+        scenario_type: str = 'realistic',
+        scenario_id: Optional[int] = None
+    ) -> List['ProjectionDataPoint']:
+        """
+        Calculate cash projection with session-state caching.
+        Results are cached until the underlying data changes.
+
+        Args:
+            Same as calculate_cash_projection()
+
+        Returns:
+            List of projection data points (from cache if available)
+        """
+        try:
+            import streamlit as st
+            fingerprint = self._get_data_fingerprint(entity)
+            cache_key = f"proj_{entity}_{timeframe}_{scenario_type}_{start_date}_{end_date}_{fingerprint}"
+
+            if '_projection_cache' not in st.session_state:
+                st.session_state['_projection_cache'] = {}
+
+            if cache_key in st.session_state['_projection_cache']:
+                return st.session_state['_projection_cache'][cache_key]
+
+            result = self.calculate_cash_projection(
+                start_date, end_date, entity, timeframe, scenario_type, scenario_id
+            )
+
+            st.session_state['_projection_cache'][cache_key] = result
+            return result
+        except ImportError:
+            # Not running in Streamlit context (e.g., tests)
+            return self.calculate_cash_projection(
+                start_date, end_date, entity, timeframe, scenario_type, scenario_id
+            )
+
+    def calculate_cash_projection_detailed_cached(
+        self,
+        start_date: date,
+        end_date: date,
+        entity: str,
+        timeframe: str = 'monthly',
+        scenario_type: str = 'realistic',
+        scenario_id: Optional[int] = None
+    ) -> 'ProjectionResult':
+        """
+        Calculate detailed cash projection with session-state caching.
+
+        Args:
+            Same as calculate_cash_projection_detailed()
+
+        Returns:
+            ProjectionResult (from cache if available)
+        """
+        try:
+            import streamlit as st
+            fingerprint = self._get_data_fingerprint(entity)
+            cache_key = f"proj_det_{entity}_{timeframe}_{scenario_type}_{start_date}_{end_date}_{fingerprint}"
+
+            if '_projection_cache' not in st.session_state:
+                st.session_state['_projection_cache'] = {}
+
+            if cache_key in st.session_state['_projection_cache']:
+                return st.session_state['_projection_cache'][cache_key]
+
+            result = self.calculate_cash_projection_detailed(
+                start_date, end_date, entity, timeframe, scenario_type, scenario_id
+            )
+
+            st.session_state['_projection_cache'][cache_key] = result
+            return result
+        except ImportError:
+            return self.calculate_cash_projection_detailed(
+                start_date, end_date, entity, timeframe, scenario_type, scenario_id
+            )
+
     def get_starting_cash(self, entity: str, as_of_date: Optional[date] = None) -> Tuple[Decimal, date]:
         """
         Get starting cash balance for entity.
@@ -397,8 +528,11 @@ class CashProjector:
                 if i < len(projection):
                     point = projection[i]
                     # Verify dates match
-                    assert point.date == template_point.date, \
-                        f"Projection dates must match: {point.date} vs {template_point.date}"
+                    if point.date != template_point.date:
+                        raise ValueError(
+                            f"Projection date mismatch for {entity_code}: "
+                            f"{point.date} vs {template_point.date}"
+                        )
 
                     total_starting_cash += point.starting_cash
                     total_inflows += point.inflows

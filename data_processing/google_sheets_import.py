@@ -257,18 +257,32 @@ def import_customer_contracts(save_to_db: bool = True) -> List[Dict]:
     if skipped_errors > 0:
         print(f"  Skipped {skipped_errors} rows with errors")
 
-    # Save to database
+    # Save to database using upsert (match on company_name + entity)
     if save_to_db:
+        created = 0
+        updated = 0
         with db_manager.session_scope() as session:
-            # Clear existing contracts
-            session.query(CustomerContract).delete()
-
-            # Insert new contracts
             for customer_data in customers:
-                customer = CustomerContract(**customer_data)
-                session.add(customer)
+                existing = session.query(CustomerContract).filter(
+                    CustomerContract.company_name == customer_data['company_name'],
+                    CustomerContract.entity == customer_data['entity']
+                ).first()
 
-        print(f"✓ Saved {len(customers)} customer contracts to database")
+                if existing:
+                    # Update existing record
+                    for key, value in customer_data.items():
+                        if key not in ('source', 'created_by'):
+                            setattr(existing, key, value)
+                    existing.source = 'google_sheets'
+                    updated += 1
+                else:
+                    # Insert new record
+                    customer_data['source'] = 'google_sheets'
+                    customer = CustomerContract(**customer_data)
+                    session.add(customer)
+                    created += 1
+
+        print(f"✓ Saved customer contracts to database (created: {created}, updated: {updated})")
 
     return customers
 
@@ -413,18 +427,30 @@ def import_vendor_contracts(save_to_db: bool = True) -> List[Dict]:
     if skipped_errors > 0:
         print(f"  Skipped {skipped_errors} rows with errors")
 
-    # Save to database
+    # Save to database using upsert (match on vendor_name + entity)
     if save_to_db:
+        created = 0
+        updated = 0
         with db_manager.session_scope() as session:
-            # Clear existing contracts
-            session.query(VendorContract).delete()
-
-            # Insert new contracts
             for vendor_data in vendors:
-                vendor = VendorContract(**vendor_data)
-                session.add(vendor)
+                existing = session.query(VendorContract).filter(
+                    VendorContract.vendor_name == vendor_data['vendor_name'],
+                    VendorContract.entity == vendor_data['entity']
+                ).first()
 
-        print(f"✓ Saved {len(vendors)} vendor contracts to database")
+                if existing:
+                    for key, value in vendor_data.items():
+                        if key not in ('source', 'created_by'):
+                            setattr(existing, key, value)
+                    existing.source = 'google_sheets'
+                    updated += 1
+                else:
+                    vendor_data['source'] = 'google_sheets'
+                    vendor = VendorContract(**vendor_data)
+                    session.add(vendor)
+                    created += 1
+
+        print(f"✓ Saved vendor contracts to database (created: {created}, updated: {updated})")
 
     return vendors
 
@@ -504,18 +530,28 @@ def import_bank_balances(save_to_db: bool = True) -> List[Dict]:
     if skipped_errors > 0:
         print(f"  Skipped {skipped_errors} rows with errors")
 
-    # Save to database
+    # Save to database using upsert (match on balance_date + entity)
     if save_to_db:
+        created = 0
+        updated = 0
         with db_manager.session_scope() as session:
-            # Clear existing balances
-            session.query(BankBalance).delete()
-
-            # Insert new balances
             for balance_data in balances:
-                balance = BankBalance(**balance_data)
-                session.add(balance)
+                existing = session.query(BankBalance).filter(
+                    BankBalance.balance_date == balance_data['balance_date'],
+                    BankBalance.entity == balance_data['entity']
+                ).first()
 
-        print(f"✓ Saved {len(balances)} bank balance entries to database")
+                if existing:
+                    existing.balance = balance_data['balance']
+                    existing.source = balance_data.get('source', 'Google Sheets Import')
+                    existing.notes = balance_data.get('notes')
+                    updated += 1
+                else:
+                    balance = BankBalance(**balance_data)
+                    session.add(balance)
+                    created += 1
+
+        print(f"✓ Saved bank balances to database (created: {created}, updated: {updated})")
 
     return balances
 

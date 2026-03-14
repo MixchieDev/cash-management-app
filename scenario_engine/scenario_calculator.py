@@ -11,7 +11,6 @@ from sqlalchemy.orm import joinedload
 from projection_engine.cash_projector import ProjectionDataPoint, CashProjector
 from database.db_manager import db_manager
 from database.models import Scenario, ScenarioChange
-from config.settings import PAYROLL_MONTHLY_TOTAL
 
 
 class ScenarioCalculator:

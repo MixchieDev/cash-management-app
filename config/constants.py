@@ -110,16 +110,7 @@ MAX_PROJECTION_MONTHS = 36  # Maximum 3-year projection
 # ═══════════════════════════════════════════════════════════════════
 # PAYROLL CONFIGURATION
 # ═══════════════════════════════════════════════════════════════════
-# Payroll is paid on the 15th and 30th of each month
-# Each entity can have different payroll amounts
-PAYROLL_CONFIG = {
-    "YAHSHUA": {
-        "15th": Decimal('1000000'),  # ₱1M on 15th
-        "30th": Decimal('1000000'),  # ₱1M on 30th
-    },
-    "ABBA": {
-        "15th": Decimal('500000'),   # ₱500K on 15th
-        "30th": Decimal('500000'),   # ₱500K on 30th
-    }
-}
+# Payroll is configured per-entity in the Settings page (database).
+# Use database.settings_manager.get_payroll_config_dynamic() to retrieve.
+# Payroll is paid on the 15th and 30th of each month.
 

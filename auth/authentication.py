@@ -1,28 +1,24 @@
 """
-Simple authentication system for Streamlit dashboard.
-Uses streamlit-authenticator for user management.
+Database-backed authentication system for Streamlit dashboard.
+Supports granular permission-based access control.
 """
 import streamlit as st
-from typing import Dict, Optional
 import bcrypt
+from typing import Dict, Optional
 
 
-# TEMPORARY: Hardcoded users for Phase 1
-# TODO Phase 2: Move to database with proper user management
-USERS_DB = {
-    'admin': {
-        'name': 'CFO Mich',
-        'password': '$2b$12$twD0n0hTzQj5L6V.Jck2hOgRC7JWIhU9.OeAklgaRa70VOzC5H/mW',  # 'admin123'
-        'email': 'cfo@jesuscompany.com',
-        'role': 'admin'
-    },
-    'viewer': {
-        'name': 'Team Viewer',
-        'password': '$2b$12$2ZexoN.oKUOdoKwOG0lPU.fEbocoNR8y.jh6ecNkxF1dk1CFvY9d.',  # 'viewer123'
-        'email': 'team@jesuscompany.com',
-        'role': 'viewer'
-    }
-}
+def verify_password(password: str, hashed: str) -> bool:
+    """
+    Verify a password against a bcrypt hash.
+
+    Args:
+        password: Plain text password
+        hashed: Bcrypt hashed password
+
+    Returns:
+        True if password matches
+    """
+    return bcrypt.checkpw(password.encode('utf-8'), hashed.encode('utf-8'))
 
 
 def hash_password(password: str) -> str:
@@ -33,28 +29,14 @@ def hash_password(password: str) -> str:
         password: Plain text password
 
     Returns:
-        Hashed password
+        Bcrypt hashed password string
     """
     return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
 
 
-def verify_password(password: str, hashed: str) -> bool:
-    """
-    Verify a password against a hash.
-
-    Args:
-        password: Plain text password
-        hashed: Hashed password
-
-    Returns:
-        True if password matches, False otherwise
-    """
-    return bcrypt.checkpw(password.encode('utf-8'), hashed.encode('utf-8'))
-
-
 def authenticate(username: str, password: str) -> Optional[Dict]:
     """
-    Authenticate a user.
+    Authenticate a user against the database.
 
     Args:
         username: Username
@@ -63,43 +45,22 @@ def authenticate(username: str, password: str) -> Optional[Dict]:
     Returns:
         User dict if authenticated, None otherwise
     """
-    user = USERS_DB.get(username)
+    from database.queries import get_user_by_username
+
+    user = get_user_by_username(username)
     if not user:
         return None
 
-    if verify_password(password, user['password']):
+    if not user['is_active']:
+        return None
+
+    if verify_password(password, user['password_hash']):
         return {
-            'username': username,
+            'username': user['username'],
             'name': user['name'],
-            'email': user['email'],
-            'role': user['role']
+            'role': user['role'],
+            'permissions': user['permissions'],
         }
-
-    return None
-
-
-def login_form() -> Optional[Dict]:
-    """
-    Display login form and handle authentication (legacy).
-
-    Returns:
-        User dict if logged in, None otherwise
-    """
-    st.markdown("## JESUS Company - Cash Management")
-    st.markdown("---")
-
-    with st.form("login_form"):
-        username = st.text_input("Username")
-        password = st.text_input("Password", type="password")
-        submit = st.form_submit_button("Login", width='stretch')
-
-        if submit:
-            user = authenticate(username, password)
-            if user:
-                return user
-            else:
-                st.error("Invalid username or password")
-                return None
 
     return None
 
@@ -111,14 +72,11 @@ def login_page() -> Optional[Dict]:
     Returns:
         User dict if logged in, None otherwise
     """
-    # Center the login card using columns
     col1, col2, col3 = st.columns([1, 1.5, 1])
 
     with col2:
-        # Add vertical spacing
         st.markdown("<div style='height: 8vh'></div>", unsafe_allow_html=True)
 
-        # Branding header (no card)
         st.markdown("""
             <div style="
                 text-align: center;
@@ -141,7 +99,6 @@ def login_page() -> Optional[Dict]:
             </div>
         """, unsafe_allow_html=True)
 
-        # Login form
         with st.form("login_form", clear_on_submit=False):
             username = st.text_input("Username", placeholder="Enter your username")
             password = st.text_input("Password", type="password", placeholder="Enter your password")
@@ -162,7 +119,6 @@ def login_page() -> Optional[Dict]:
                     st.error("Invalid username or password")
                     return None
 
-        # Footer
         st.markdown("""
             <div style="
                 text-align: center;
@@ -177,6 +133,11 @@ def login_page() -> Optional[Dict]:
     return None
 
 
+def login_form() -> Optional[Dict]:
+    """Legacy login form (kept for compatibility)."""
+    return login_page()
+
+
 def logout():
     """Clear session state and log out user."""
     for key in list(st.session_state.keys()):
@@ -185,10 +146,10 @@ def logout():
 
 def require_auth(required_role: Optional[str] = None):
     """
-    Decorator to require authentication for a page.
+    Require authentication for a page.
 
     Args:
-        required_role: Required role ('admin' or 'viewer'). None = any authenticated user
+        required_role: Required role ('admin' or None). None = any authenticated user.
     """
     if 'authenticated' not in st.session_state or not st.session_state.authenticated:
         st.warning("Please log in to access this page")
@@ -199,8 +160,43 @@ def require_auth(required_role: Optional[str] = None):
         st.stop()
 
 
+def require_permission(permission: str):
+    """
+    Require a specific permission to access content.
+    Shows error and stops if user doesn't have the permission.
+
+    Args:
+        permission: Permission key (e.g. 'view_dashboard', 'edit_contracts')
+    """
+    if 'authenticated' not in st.session_state or not st.session_state.authenticated:
+        st.warning("Please log in to access this page")
+        st.stop()
+
+    user_permissions = st.session_state.get('user_permissions', [])
+    if permission not in user_permissions:
+        from auth.permissions import get_permission_label
+        label = get_permission_label(permission)
+        st.error(f"Access Denied: You don't have the '{label}' permission.")
+        st.info("Contact your administrator to request access.")
+        st.stop()
+
+
+def check_permission(permission: str) -> bool:
+    """
+    Check if current user has a permission (without stopping).
+
+    Args:
+        permission: Permission key
+
+    Returns:
+        True if user has the permission
+    """
+    user_permissions = st.session_state.get('user_permissions', [])
+    return permission in user_permissions
+
+
 def init_session_state():
-    """Initialize session state variables."""
+    """Initialize session state variables and ensure default users exist."""
     if 'authenticated' not in st.session_state:
         st.session_state.authenticated = False
     if 'username' not in st.session_state:
@@ -209,3 +205,11 @@ def init_session_state():
         st.session_state.name = None
     if 'user_role' not in st.session_state:
         st.session_state.user_role = None
+    if 'user_permissions' not in st.session_state:
+        st.session_state.user_permissions = []
+
+    # Seed default users on first run
+    if '_users_seeded' not in st.session_state:
+        from database.db_manager import ensure_users_seeded
+        ensure_users_seeded()
+        st.session_state._users_seeded = True

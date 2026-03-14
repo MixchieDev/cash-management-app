@@ -12,13 +12,14 @@ from decimal import Decimal
 # Add parent directory to Python path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from auth.authentication import require_auth
+from auth.authentication import require_auth, require_permission
 from config.constants import PAYMENT_PLAN_FREQUENCIES
 from projection_engine.cash_projector import CashProjector, ProjectionResult
 from database.queries import get_latest_bank_balance, get_consolidated_bank_balance, get_total_mrr, get_total_monthly_expenses
 from utils.currency_formatter import format_currency
 from dashboard.components.transaction_modal import show_transaction_breakdown_modal
 from dashboard.components.styling import load_css, page_header, kpi_card, metric_row
+from dashboard.components.shared_state import render_entity_selector, get_selected_entity
 from dashboard.theme import COLORS, get_chart_layout, CHART_COLORS
 from utils.period_helpers import calculate_period_range
 
@@ -33,6 +34,7 @@ st.set_page_config(
 
 load_css()
 require_auth()
+require_permission('view_dashboard')
 
 # Page header with entity selector
 col_title, col_entity = st.columns([3, 1])
@@ -43,12 +45,7 @@ with col_title:
 # HEADER CONTROLS
 # ═══════════════════════════════════════════════════════════════════
 with col_entity:
-    entity = st.selectbox(
-        "Entity",
-        ["YAHSHUA", "ABBA", "Consolidated"],
-        key="entity_selector",
-        label_visibility="collapsed"
-    )
+    entity = render_entity_selector(key_suffix='_home')
 
 # Get realistic delay from settings for help text
 try:
@@ -82,7 +79,7 @@ try:
         balance_date = bank_data['date']
 except Exception as e:
     st.error(f"Unable to load bank balance: {str(e)}")
-    st.info("Please ensure you have synced data from Google Sheets. Go to Contracts page and click 'Sync from Google Sheets'.")
+    st.info("Please ensure you have imported data. Go to Settings > Data Import to upload CSV files.")
     st.stop()
 
 # ═══════════════════════════════════════════════════════════════════
@@ -101,7 +98,7 @@ if 'projection_result' not in st.session_state:
 try:
     projector = CashProjector()
     # Use detailed projection to get both aggregated data AND events
-    projection_result_90d = projector.calculate_cash_projection_detailed(
+    projection_result_90d = projector.calculate_cash_projection_detailed_cached(
         start_date=date.today(),
         end_date=date.today() + timedelta(days=90),
         entity=entity,
@@ -247,7 +244,7 @@ tf_key, tf_days = timeframe_map[timeframe]
 
 # Get projection for selected timeframe
 try:
-    projection_result = projector.calculate_cash_projection_detailed(
+    projection_result = projector.calculate_cash_projection_detailed_cached(
         start_date=date.today(),
         end_date=date.today() + timedelta(days=tf_days),
         entity=entity,
@@ -375,32 +372,7 @@ if st.session_state.show_transaction_modal and st.session_state.modal_period_dat
         entity=modal_data['entity']
     )
 
-# ═══════════════════════════════════════════════════════════════════
-# SYNC BUTTON
-# ═══════════════════════════════════════════════════════════════════
 st.markdown("---")
-
-col1, col2 = st.columns([3, 1])
-
-with col1:
-    if 'last_sync' in st.session_state:
-        st.caption(f"Last synced: {st.session_state.last_sync}")
-    else:
-        st.caption("Data not yet synced")
-
-with col2:
-    if st.button("↻ Sync from Google Sheets", type="primary"):
-        with st.spinner("Syncing data from Google Sheets..."):
-            try:
-                from data_processing.google_sheets_import import sync_all_data
-                from datetime import datetime
-
-                result = sync_all_data()
-                st.session_state.last_sync = datetime.now().strftime("%Y-%m-%d %H:%M")
-                st.success(f"✅ Synced: {result.get('customers', 0)} customers, {result.get('vendors', 0)} vendors")
-                st.rerun()
-            except Exception as e:
-                st.error(f"Sync failed: {str(e)}")
 
 # ═══════════════════════════════════════════════════════════════════
 # REVENUE & EXPENSE BREAKDOWNS
@@ -443,12 +415,36 @@ with col1:
 
 with col2:
     if st.button("📊 Compare Scenarios", width='stretch'):
-        st.switch_page("pages/3_Scenario_Comparison.py")
+        st.switch_page("pages/2_Scenarios.py")
 
 with col3:
     if st.button("📄 View Contracts", width='stretch'):
-        st.switch_page("pages/4_Contracts.py")
+        st.switch_page("pages/3_Contracts.py")
 
 with col4:
     if st.button("🎯 Strategic Planning", width='stretch'):
-        st.switch_page("pages/6_Strategic.py")
+        st.switch_page("pages/2_Scenarios.py")
+
+# ═══════════════════════════════════════════════════════════════════
+# GUIDE
+# ═══════════════════════════════════════════════════════════════════
+with st.expander("Understanding This Dashboard"):
+    st.markdown("""
+**KPI Cards:**
+- **Current Cash** — latest bank balance on record
+- **30/60/90-Day Projections** — predicted cash position at each milestone
+- **Cash Runway** — how many months expenses can be covered at current burn rate
+
+**Projection Chart:**
+- Shows cash position over time (daily, weekly, monthly, or quarterly)
+- **Red zone** = negative cash, **yellow zone** = below ₱500K
+- Click any data point to see the individual transactions (customer payments and vendor expenses) for that period
+
+**Optimistic vs Realistic:**
+- **Optimistic** — all customers pay exactly on their due date
+- **Realistic** — customers pay late by the number of days set in Settings (default: 10 days)
+
+**Alerts:**
+- Cash crunch warning if projected cash goes negative within 30 days
+- Low cash warning if projected cash drops below ₱500,000
+""")

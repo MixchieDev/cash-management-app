@@ -191,16 +191,9 @@ p, .stMarkdown {
    BUTTONS - Apple style
    ═══════════════════════════════════════════════════════════════════ */
 
-/* Primary button - force white text */
+/* All buttons - shared base styles */
 .stButton > button,
-.stButton > button[kind="primary"],
-.stButton > button[data-testid="baseButton-primary"],
-[data-testid="stBaseButton-primary"],
-button[data-testid="baseButton-primary"],
-.stButton button {
-    background-color: var(--color-accent) !important;
-    color: #FFFFFF !important;
-    border: none !important;
+.stDownloadButton > button {
     border-radius: var(--radius-sm) !important;
     padding: 10px 20px !important;
     font-size: var(--text-base) !important;
@@ -209,38 +202,56 @@ button[data-testid="baseButton-primary"],
     box-shadow: none !important;
 }
 
-/* Force white text on button text elements */
-.stButton > button p,
-.stButton > button span,
-.stButton > button div,
-.stButton button p,
-.stButton button span,
-.stButton button div,
+/* Primary button - blue background, white text */
+[data-testid="stBaseButton-primary"] {
+    background-color: var(--color-accent) !important;
+    color: #FFFFFF !important;
+    border: none !important;
+}
+
 [data-testid="stBaseButton-primary"] p,
 [data-testid="stBaseButton-primary"] span {
     color: #FFFFFF !important;
 }
 
-.stButton > button:hover,
-.stButton > button[kind="primary"]:hover,
-.stButton button:hover {
+[data-testid="stBaseButton-primary"]:hover {
     background-color: var(--color-accent-hover) !important;
-    color: #FFFFFF !important;
 }
 
-/* Secondary button */
-.stButton > button[kind="secondary"],
-.stButton > button[data-testid="baseButton-secondary"],
-[data-testid="stBaseButton-secondary"] {
-    background-color: transparent !important;
-    color: var(--color-accent) !important;
-    border: none !important;
-    padding: 10px 20px !important;
-    font-weight: 500 !important;
+/* Secondary / default button - light background, dark text */
+[data-testid="stBaseButton-secondary"],
+[data-testid="stBaseButton-minimal"] {
+    background-color: var(--color-surface) !important;
+    color: var(--color-text-primary) !important;
+    border: 1px solid var(--color-border) !important;
 }
 
-.stButton > button[kind="secondary"]:hover {
-    background-color: var(--color-accent-light) !important;
+[data-testid="stBaseButton-secondary"] p,
+[data-testid="stBaseButton-secondary"] span,
+[data-testid="stBaseButton-minimal"] p,
+[data-testid="stBaseButton-minimal"] span {
+    color: var(--color-text-primary) !important;
+}
+
+[data-testid="stBaseButton-secondary"]:hover,
+[data-testid="stBaseButton-minimal"]:hover {
+    background-color: var(--color-background) !important;
+}
+
+/* Download button */
+.stDownloadButton > button {
+    background-color: var(--color-surface) !important;
+    color: var(--color-text-primary) !important;
+    border: 1px solid var(--color-border) !important;
+}
+
+.stDownloadButton > button p,
+.stDownloadButton > button span {
+    color: var(--color-text-primary) !important;
+}
+
+.stDownloadButton > button:hover {
+    background-color: var(--color-background) !important;
 }
 
 /* ═══════════════════════════════════════════════════════════════════

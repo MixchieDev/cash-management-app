@@ -48,6 +48,8 @@ class CustomerContract(Base):
     payment_terms_days = Column(Integer, nullable=True)  # None = use global setting
     reliability_score = Column(Numeric(3, 2), default=0.80)
     notes = Column(Text, nullable=True)
+    source = Column(String, default='manual')  # 'manual', 'google_sheets', 'csv_import'
+    created_by = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -85,6 +87,8 @@ class VendorContract(Base):
     flexibility_days = Column(Integer, default=0)
     status = Column(String, nullable=False, default='Active')
     notes = Column(Text, nullable=True)
+    source = Column(String, default='manual')  # 'manual', 'google_sheets', 'csv_import'
+    created_by = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -281,6 +285,43 @@ class PaymentOverride(Base):
 
     def __repr__(self):
         return f"<PaymentOverride(id={self.id}, type={self.override_type}, action={self.action}, original={self.original_date})>"
+
+
+class User(Base):
+    """Database-backed user for authentication and access control."""
+    __tablename__ = 'users'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    username = Column(String(50), unique=True, nullable=False)
+    password_hash = Column(String(255), nullable=False)
+    name = Column(String(200), nullable=False)
+    role = Column(String(20), default='viewer')  # admin/editor/viewer (template label)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    permissions = relationship('UserPermission', back_populates='user', cascade='all, delete-orphan')
+
+    def __repr__(self):
+        return f"<User(username={self.username}, role={self.role})>"
+
+
+class UserPermission(Base):
+    """Granular permission entry for a user."""
+    __tablename__ = 'user_permissions'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    permission = Column(String(50), nullable=False)
+    granted = Column(Boolean, default=True)
+
+    user = relationship('User', back_populates='permissions')
+
+    __table_args__ = (
+        UniqueConstraint('user_id', 'permission', name='uq_user_permission'),
+    )
+
+    def __repr__(self):
+        return f"<UserPermission(user_id={self.user_id}, permission={self.permission}, granted={self.granted})>"
 
 
 class AppSettings(Base):

@@ -67,16 +67,17 @@ class RevenueCalculator:
         else:  # realistic
             self.payment_delay_days = settings['realistic_delay_days']  # Default: 10 days
 
-    def calculate_payment_date(self, billing_month: date, contract_start: date) -> date:
+    def calculate_payment_date(self, billing_month: date, contract_start: date, invoice_day: Optional[int] = None) -> date:
         """
-        Calculate payment date based on contract start day.
+        Calculate payment date based on contract invoice_day or contract start day.
 
-        Payment is received on the same day of month as the contract started,
-        plus any delay for realistic scenario.
+        Uses per-contract invoice_day if set, otherwise falls back to the day
+        of month from contract_start.
 
         Args:
             billing_month: The month being billed (e.g., March 2026)
-            contract_start: Contract start date (use day of month)
+            contract_start: Contract start date (fallback for day of month)
+            invoice_day: Per-contract invoice day override (1-28), or None
 
         Returns:
             Payment date for this billing month
@@ -89,8 +90,8 @@ class RevenueCalculator:
         """
         from calendar import monthrange
 
-        # Use the day of month from contract_start
-        payment_day = contract_start.day
+        # Use per-contract invoice_day if set, otherwise contract start day
+        payment_day = invoice_day if invoice_day else contract_start.day
 
         # Cap at max days in the billing month (handle Feb, etc.)
         max_day = monthrange(billing_month.year, billing_month.month)[1]
@@ -190,9 +191,10 @@ class RevenueCalculator:
             billing_months = self.get_billing_months(contract, start_date, end_date)
 
             for billing_month in billing_months:
-                # Calculate payment date based on contract start day
-                # Payment is received on the same day of month as contract started
-                payment_date = self.calculate_payment_date(billing_month, contract.contract_start)
+                # Calculate payment date based on contract invoice_day or start day
+                payment_date = self.calculate_payment_date(
+                    billing_month, contract.contract_start, contract.invoice_day
+                )
 
                 # Check for payment override
                 override_key = (contract.id, payment_date)

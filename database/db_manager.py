@@ -201,6 +201,19 @@ else:
         from database.settings_manager import init_entities_table
         init_entities_table()
 
+# Ensure users table exists
+if not db_manager.table_exists('users'):
+    print("[DB] Users table missing, creating...")
+    from database.models import User, UserPermission
+    User.__table__.create(bind=db_manager.engine, checkfirst=True)
+    UserPermission.__table__.create(bind=db_manager.engine, checkfirst=True)
+
+
+def ensure_users_seeded() -> None:
+    """Seed default users if none exist. Called lazily to avoid circular imports."""
+    from database.queries import auto_seed_admin
+    auto_seed_admin()
+
 
 def get_db() -> Generator[Session, None, None]:
     """

@@ -74,12 +74,12 @@ class DataValidator:
                 errors.append("contract_end cannot be before contract_start")
 
         # Validate invoice day
-        if 'invoice_day' in data:
+        if data.get('invoice_day') is not None:
             if not (1 <= data['invoice_day'] <= 28):
                 errors.append("invoice_day must be between 1 and 28")
 
         # Validate payment terms
-        if 'payment_terms_days' in data:
+        if data.get('payment_terms_days') is not None:
             if data['payment_terms_days'] < 0:
                 errors.append("payment_terms_days cannot be negative")
 
@@ -190,6 +190,126 @@ class DataValidator:
             return False, "; ".join(errors)
 
         return True, None
+
+    @staticmethod
+    def validate_customer_contract_structured(data: Dict) -> Tuple[bool, List[Dict]]:
+        """
+        Validate customer contract data with field-level error details.
+
+        Args:
+            data: Customer contract dictionary
+
+        Returns:
+            Tuple of (is_valid, list of {'field': str, 'message': str})
+        """
+        errors = []
+
+        required_fields = ['company_name', 'monthly_fee', 'payment_plan', 'contract_start', 'status', 'who_acquired', 'entity']
+        for field in required_fields:
+            if field not in data or data[field] is None:
+                errors.append({'field': field, 'message': f'{field} is required'})
+
+        if any(e['field'] in required_fields[:4] for e in errors):
+            return False, errors
+
+        if not isinstance(data.get('monthly_fee'), Decimal):
+            errors.append({'field': 'monthly_fee', 'message': 'Must be a decimal number'})
+        elif data['monthly_fee'] < 0:
+            errors.append({'field': 'monthly_fee', 'message': 'Cannot be negative'})
+
+        if data.get('payment_plan') not in VALID_PAYMENT_PLANS:
+            errors.append({'field': 'payment_plan', 'message': f'Must be one of: {", ".join(VALID_PAYMENT_PLANS)}'})
+
+        if data.get('status') not in VALID_CONTRACT_STATUSES:
+            errors.append({'field': 'status', 'message': f'Must be one of: {", ".join(VALID_CONTRACT_STATUSES)}'})
+
+        if data.get('entity') and not validate_entity(data['entity']):
+            errors.append({'field': 'entity', 'message': 'Invalid entity'})
+
+        if data.get('contract_end') and isinstance(data.get('contract_start'), date):
+            if isinstance(data['contract_end'], date) and data['contract_end'] < data['contract_start']:
+                errors.append({'field': 'contract_end', 'message': 'End date cannot be before start date'})
+
+        if 'invoice_day' in data and data['invoice_day'] is not None:
+            if not (1 <= data['invoice_day'] <= 28):
+                errors.append({'field': 'invoice_day', 'message': 'Must be between 1 and 28'})
+
+        if 'reliability_score' in data and data['reliability_score'] is not None:
+            if not (0 <= data['reliability_score'] <= 1):
+                errors.append({'field': 'reliability_score', 'message': 'Must be between 0 and 1'})
+
+        return len(errors) == 0, errors
+
+    @staticmethod
+    def validate_vendor_contract_structured(data: Dict) -> Tuple[bool, List[Dict]]:
+        """
+        Validate vendor contract data with field-level error details.
+
+        Args:
+            data: Vendor contract dictionary
+
+        Returns:
+            Tuple of (is_valid, list of {'field': str, 'message': str})
+        """
+        errors = []
+
+        required_fields = ['vendor_name', 'category', 'amount', 'frequency', 'due_date', 'entity']
+        for field in required_fields:
+            if field not in data or data[field] is None:
+                errors.append({'field': field, 'message': f'{field} is required'})
+
+        if any(e['field'] in required_fields[:3] for e in errors):
+            return False, errors
+
+        if not isinstance(data.get('amount'), Decimal):
+            errors.append({'field': 'amount', 'message': 'Must be a decimal number'})
+        elif data['amount'] < 0:
+            errors.append({'field': 'amount', 'message': 'Cannot be negative'})
+
+        if data.get('category') not in VALID_EXPENSE_CATEGORIES:
+            errors.append({'field': 'category', 'message': f'Must be one of: {", ".join(VALID_EXPENSE_CATEGORIES)}'})
+
+        if data.get('frequency') not in VALID_EXPENSE_FREQUENCIES:
+            errors.append({'field': 'frequency', 'message': f'Must be one of: {", ".join(VALID_EXPENSE_FREQUENCIES)}'})
+
+        if data.get('entity') not in ['YAHSHUA', 'ABBA', 'Both']:
+            errors.append({'field': 'entity', 'message': 'Must be YAHSHUA, ABBA, or Both'})
+
+        if 'priority' in data and data['priority'] is not None:
+            if not (1 <= data['priority'] <= 4):
+                errors.append({'field': 'priority', 'message': 'Must be between 1 and 4'})
+
+        return len(errors) == 0, errors
+
+    @staticmethod
+    def validate_bank_balance_structured(data: Dict) -> Tuple[bool, List[Dict]]:
+        """
+        Validate bank balance data with field-level error details.
+
+        Args:
+            data: Bank balance dictionary
+
+        Returns:
+            Tuple of (is_valid, list of {'field': str, 'message': str})
+        """
+        errors = []
+
+        if 'balance_date' not in data or data['balance_date'] is None:
+            errors.append({'field': 'balance_date', 'message': 'Date is required'})
+        elif not isinstance(data['balance_date'], date):
+            errors.append({'field': 'balance_date', 'message': 'Must be a valid date'})
+
+        if 'entity' not in data or data['entity'] is None:
+            errors.append({'field': 'entity', 'message': 'Entity is required'})
+        elif not validate_entity(data['entity']):
+            errors.append({'field': 'entity', 'message': 'Invalid entity'})
+
+        if 'balance' not in data or data['balance'] is None:
+            errors.append({'field': 'balance', 'message': 'Balance amount is required'})
+        elif not isinstance(data['balance'], Decimal):
+            errors.append({'field': 'balance', 'message': 'Must be a decimal number'})
+
+        return len(errors) == 0, errors
 
     @staticmethod
     def validate_all_customers(customers: List[Dict]) -> List[str]:

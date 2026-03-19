@@ -79,6 +79,7 @@ const emptyForm: FormData = {
   flexibilityDays: '',
   status: 'Active',
   notes: '',
+  bankAccount: 'RCBC Current',
 };
 
 export function VendorForm({ open, onOpenChange, vendor }: VendorFormProps) {
@@ -104,6 +105,7 @@ export function VendorForm({ open, onOpenChange, vendor }: VendorFormProps) {
         flexibilityDays: vendor.flexibilityDays.toString(),
         status: vendor.status,
         notes: vendor.notes ?? '',
+        bankAccount: (vendor as any).bankAccount ?? 'RCBC Current',
       });
     } else {
       setForm(emptyForm);
@@ -303,6 +305,20 @@ export function VendorForm({ open, onOpenChange, vendor }: VendorFormProps) {
                 </SelectContent>
               </Select>
             </div>
+          </div>
+
+          {/* Bank Account */}
+          <div className="space-y-1.5">
+            <Label htmlFor="bankAccount">Bank Account</Label>
+            <Input
+              id="bankAccount"
+              value={form.bankAccount ?? 'RCBC Current'}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateField('bankAccount', e.target.value)}
+              placeholder="e.g. RCBC Current, BDO Savings"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label>Priority</Label>
               <Select

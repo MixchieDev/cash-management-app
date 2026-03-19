@@ -67,6 +67,7 @@ const emptyForm: FormData = {
   invoiceDay: '',
   reliabilityScore: '0.80',
   notes: '',
+  bankAccount: 'RCBC Current',
 };
 
 export function CustomerForm({ open, onOpenChange, customer }: CustomerFormProps) {
@@ -91,6 +92,7 @@ export function CustomerForm({ open, onOpenChange, customer }: CustomerFormProps
         invoiceDay: customer.invoiceDay?.toString() ?? '',
         reliabilityScore: customer.reliabilityScore?.toString() ?? '0.80',
         notes: customer.notes ?? '',
+        bankAccount: (customer as any).bankAccount ?? 'RCBC Current',
       });
     } else {
       setForm(emptyForm);
@@ -262,6 +264,17 @@ export function CustomerForm({ open, onOpenChange, customer }: CustomerFormProps
                 </SelectContent>
               </Select>
             </div>
+          </div>
+
+          {/* Bank Account */}
+          <div className="space-y-1.5">
+            <Label htmlFor="bankAccount">Bank Account</Label>
+            <Input
+              id="bankAccount"
+              value={form.bankAccount ?? 'RCBC Current'}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateField('bankAccount', e.target.value)}
+              placeholder="e.g. RCBC Current, BDO Savings"
+            />
           </div>
 
           {/* Contract Start + End */}

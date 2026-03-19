@@ -22,7 +22,9 @@ import {
   FileText,
   Target,
   Loader2,
+  Download,
 } from 'lucide-react';
+import { exportProjection } from '@/lib/export-projection';
 
 const TIMEFRAME_OPTIONS: { value: Timeframe; label: string }[] = [
   { value: 'daily', label: '60 Days' },
@@ -152,20 +154,46 @@ export default function DashboardPage() {
               Click any point for transaction details
             </p>
           </div>
-          <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-0.5">
-            {TIMEFRAME_OPTIONS.map((opt) => (
-              <button
-                key={opt.value}
-                onClick={() => setTimeframe(opt.value)}
-                className={`px-3 py-1.5 text-[11px] font-medium rounded-md transition-all ${
-                  timeframe === opt.value
-                    ? 'bg-white text-slate-900 shadow-sm'
-                    : 'text-slate-500 hover:text-slate-700'
-                }`}
-              >
-                {opt.label}
-              </button>
-            ))}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                if (projection && dataPoints.length > 0) {
+                  exportProjection(
+                    {
+                      dataPoints,
+                      revenueEvents: (projection.revenueEvents ?? []) as any,
+                      expenseEvents: (projection.expenseEvents ?? []) as any,
+                    },
+                    {
+                      entity: selectedEntity,
+                      scenario: scenarioType,
+                      timeframe,
+                      balanceDate,
+                    }
+                  );
+                }
+              }}
+              disabled={isLoading || dataPoints.length === 0}
+              className="p-1.5 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              title="Export as CSV"
+            >
+              <Download className="h-4 w-4" />
+            </button>
+            <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-0.5">
+              {TIMEFRAME_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  onClick={() => setTimeframe(opt.value)}
+                  className={`px-3 py-1.5 text-[11px] font-medium rounded-md transition-all ${
+                    timeframe === opt.value
+                      ? 'bg-white text-slate-900 shadow-sm'
+                      : 'text-slate-500 hover:text-slate-700'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
         <div className="px-2 pb-4">

@@ -58,6 +58,8 @@ export function useProjection(
       ? new Date(Math.max(...balanceDates.map((d: Date) => d.getTime())))
       : parseDate(new Date().toISOString().split('T')[0]);
     const endDate = addDays(startDate, TIMEFRAME_DAYS[timeframe] ?? 365);
+    // Events before today are already reflected in the bank balance
+    const today = parseDate(new Date().toISOString().split('T')[0]);
     const projector = new CashProjector();
 
     // Get selected account names per entity for contract filtering
@@ -71,7 +73,7 @@ export function useProjection(
 
     if (data.entities.length === 1) {
       const ent = data.entities[0];
-      return runProjection(projector, ent, startDate, endDate, timeframe, scenarioType, getAccountNamesForEntity(ent.entity), realisticDelayDays);
+      return runProjection(projector, ent, startDate, endDate, timeframe, scenarioType, getAccountNamesForEntity(ent.entity), realisticDelayDays, today);
     }
 
     // Consolidated: run per entity and merge
@@ -153,6 +155,7 @@ export function useProjection(
       timeframe,
       scenarioType,
       realisticDelayDays,
+      projectionAsOfDate: today,
       startingCash: totalStartingCash,
       customerContracts: allCustomers,
       vendorContracts: allVendors,
@@ -216,7 +219,8 @@ function runProjection(
   timeframe: string,
   scenarioType: string,
   selectedAccountNames?: string[],
-  realisticDelayDays?: number
+  realisticDelayDays?: number,
+  projectionAsOfDate?: Date
 ) {
   // Filter contracts by bank account if specific accounts are selected.
   // Contracts without bankAccount default to "Main Account".
@@ -267,6 +271,7 @@ function runProjection(
     timeframe,
     scenarioType,
     realisticDelayDays,
+    projectionAsOfDate,
     startingCash: new Decimal(entityData.startingCash),
     customerContracts,
     vendorContracts,

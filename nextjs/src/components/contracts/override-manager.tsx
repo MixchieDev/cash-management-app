@@ -35,7 +35,7 @@ import {
 import type { EntityOrConsolidated, PaymentOverride, CustomerContract, VendorContract } from '@/lib/types';
 
 interface OverrideManagerProps {
-  entity: EntityOrConsolidated;
+  entity: string;
 }
 
 const overrideSchema = z.object({

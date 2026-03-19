@@ -17,6 +17,7 @@ export const seedAll = mutation({
         fullName: v.string(),
         isActive: v.boolean(),
         displayOrder: v.number(),
+        color: v.optional(v.string()),
       })
     ),
     customerContracts: v.array(
@@ -59,6 +60,7 @@ export const seedAll = mutation({
       v.object({
         balanceDate: v.string(),
         entity: v.string(),
+        accountName: v.string(),
         balance: v.number(),
         source: v.string(),
         notes: v.optional(v.string()),

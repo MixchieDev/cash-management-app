@@ -10,6 +10,7 @@ import type { CustomerContractData } from '@/lib/engine/revenue-calculator';
 import type { VendorContractData } from '@/lib/engine/expense-scheduler';
 import { parseDate } from '@/lib/engine/date-utils';
 import type { Timeframe, ScenarioType } from '@/lib/types';
+import { useAppStore, type SelectedAccount } from '@/stores/app-store';
 
 // Each timeframe shows a sensible range for its granularity
 const TIMEFRAME_DAYS: Record<string, number> = {
@@ -25,11 +26,18 @@ const TIMEFRAME_DAYS: Record<string, number> = {
  * The projection engine runs client-side (pure TypeScript, no DB calls).
  */
 export function useProjection(
-  entity: string,
+  _entity: string, // kept for backward compat, actual selection from store
   timeframe: Timeframe,
   scenarioType: ScenarioType
 ) {
-  const data = useQuery(api.projections.getProjectionData, { entity });
+  const { selectedAccounts, allAccountsSelected } = useAppStore();
+
+  // Pass selected accounts to Convex, or undefined for consolidated
+  const queryArgs = allAccountsSelected || selectedAccounts.length === 0
+    ? {}
+    : { accounts: selectedAccounts };
+
+  const data = useQuery(api.projections.getProjectionData, queryArgs);
 
   const projection = useMemo(() => {
     if (!data || data.entities.length === 0) {

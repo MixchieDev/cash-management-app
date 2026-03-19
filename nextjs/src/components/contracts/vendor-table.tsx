@@ -21,7 +21,7 @@ import { Search, Plus, Pencil, XCircle, Trash2 } from 'lucide-react';
 import type { VendorContract, EntityOrConsolidated } from '@/lib/types';
 
 interface VendorTableProps {
-  entity: EntityOrConsolidated;
+  entity: string;
 }
 
 function calculateMonthlyEquivalent(amount: number, frequency: string): string | null {

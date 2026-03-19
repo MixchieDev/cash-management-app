@@ -22,7 +22,7 @@ import { Search, Plus, Pencil, XCircle, Trash2 } from 'lucide-react';
 import type { CustomerContract, EntityOrConsolidated } from '@/lib/types';
 
 interface CustomerTableProps {
-  entity: EntityOrConsolidated;
+  entity: string;
 }
 
 export function CustomerTable({ entity }: CustomerTableProps) {

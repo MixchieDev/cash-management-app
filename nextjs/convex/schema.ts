@@ -10,6 +10,7 @@ export default defineSchema({
     fullName: v.string(),
     isActive: v.boolean(),
     displayOrder: v.number(),
+    color: v.optional(v.string()), // hex color, e.g. "#2563eb"
   }).index("by_shortCode", ["shortCode"]),
 
   // ═══════════════════════════════════════════════════════════════
@@ -64,12 +65,14 @@ export default defineSchema({
   bankBalances: defineTable({
     balanceDate: v.string(), // ISO date
     entity: v.string(),
+    accountName: v.string(), // e.g. "BDO Savings", "RCBC Checking"
     balance: v.number(),
     source: v.string(),
     notes: v.optional(v.string()),
   })
     .index("by_entity", ["entity"])
-    .index("by_entity_date", ["entity", "balanceDate"]),
+    .index("by_entity_date", ["entity", "balanceDate"])
+    .index("by_entity_account", ["entity", "accountName"]),
 
   // ═══════════════════════════════════════════════════════════════
   // Scenarios

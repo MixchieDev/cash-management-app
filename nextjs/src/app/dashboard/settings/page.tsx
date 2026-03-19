@@ -19,12 +19,28 @@ import {
 } from '@/components/ui/table';
 import { formatCurrency } from '@/lib/currency';
 import { useSettings, useUpdateSetting, useAuditLog } from '@/hooks/use-settings';
+import { useAllEntities, useCreateEntity, useUpdateEntity, useDeleteEntity } from '@/hooks/use-entities';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { toast } from 'sonner';
 
 export default function SettingsPage() {
   const settings = useSettings() ?? [];
   const updateSetting = useUpdateSetting();
   const auditLog = useAuditLog() ?? [];
+  const allEntities = useAllEntities() ?? [];
+  const createEntity = useCreateEntity();
+  const updateEntity = useUpdateEntity();
+  const deleteEntity = useDeleteEntity();
+
+  // Entity form state
+  const [entityDialogOpen, setEntityDialogOpen] = useState(false);
+  const [editingEntity, setEditingEntity] = useState<any>(null);
+  const [entityForm, setEntityForm] = useState({ shortCode: '', fullName: '', color: '#2563eb', displayOrder: 0 });
 
   // Payment terms state
   const [delayDays, setDelayDays] = useState(10);
@@ -176,35 +192,169 @@ export default function SettingsPage() {
 
         <TabsContent value="entities">
           <Card className="border-0 shadow-sm">
-            <CardHeader>
-              <CardTitle className="text-base">Entity Management</CardTitle>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="text-sm font-semibold">Entity Management</CardTitle>
+              <Button
+                size="sm"
+                className="bg-blue-600 hover:bg-blue-700"
+                onClick={() => {
+                  setEditingEntity(null);
+                  setEntityForm({ shortCode: '', fullName: '', color: '#2563eb', displayOrder: 0 });
+                  setEntityDialogOpen(true);
+                }}
+              >
+                Add Entity
+              </Button>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="rounded-xl border border-[#007AFF]/20 bg-[#007AFF]/5 p-4">
-                    <div className="flex items-center gap-2">
-                      <span className="h-3 w-3 rounded-full bg-[#007AFF]" />
-                      <span className="font-medium">YAHSHUA</span>
+              <div className="space-y-3">
+                {allEntities.map((entity: any) => (
+                  <div
+                    key={entity._id}
+                    className={`flex items-center gap-4 rounded-xl border p-4 ${
+                      entity.isActive ? 'border-slate-200' : 'border-slate-100 opacity-50'
+                    }`}
+                  >
+                    <span
+                      className="h-4 w-4 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: entity.color ?? '#64748b' }}
+                    />
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold text-slate-900">{entity.shortCode}</p>
+                      <p className="text-xs text-slate-500">{entity.fullName}</p>
                     </div>
-                    <p className="text-xs text-[#86868B] mt-1">YAHSHUA Outsourcing Worldwide Inc</p>
-                    <p className="text-xs text-[#86868B]">Sources: RCBC Partner, Globe Partner, YOWI</p>
-                  </div>
-                  <div className="rounded-xl border border-[#AF52DE]/20 bg-[#AF52DE]/5 p-4">
-                    <div className="flex items-center gap-2">
-                      <span className="h-3 w-3 rounded-full bg-[#AF52DE]" />
-                      <span className="font-medium">ABBA</span>
+                    <Badge variant="secondary" className={`text-[10px] ${entity.isActive ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-50 text-slate-400'}`}>
+                      {entity.isActive ? 'Active' : 'Inactive'}
+                    </Badge>
+                    <div className="flex gap-1">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="text-xs"
+                        onClick={() => {
+                          setEditingEntity(entity);
+                          setEntityForm({
+                            shortCode: entity.shortCode,
+                            fullName: entity.fullName,
+                            color: entity.color ?? '#64748b',
+                            displayOrder: entity.displayOrder ?? 0,
+                          });
+                          setEntityDialogOpen(true);
+                        }}
+                      >
+                        Edit
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className={entity.isActive ? 'text-xs text-red-500' : 'text-xs text-emerald-600'}
+                        onClick={async () => {
+                          if (entity.isActive) {
+                            await deleteEntity.mutateAsync({ id: entity._id });
+                            toast.success(`${entity.shortCode} deactivated`);
+                          } else {
+                            await updateEntity.mutateAsync({ id: entity._id, isActive: true });
+                            toast.success(`${entity.shortCode} reactivated`);
+                          }
+                        }}
+                      >
+                        {entity.isActive ? 'Deactivate' : 'Reactivate'}
+                      </Button>
                     </div>
-                    <p className="text-xs text-[#86868B] mt-1">The ABBA Initiative OPC</p>
-                    <p className="text-xs text-[#86868B]">Sources: TAI, PEI</p>
                   </div>
-                </div>
-                <p className="text-xs text-[#86868B]">
-                  Entity mapping rules determine which customer contracts belong to which entity based on acquisition source.
-                </p>
+                ))}
+                {allEntities.length === 0 && (
+                  <p className="text-center text-slate-400 py-8">No entities configured.</p>
+                )}
               </div>
             </CardContent>
           </Card>
+
+          {/* Entity Dialog */}
+          <Dialog open={entityDialogOpen} onOpenChange={(open: boolean) => setEntityDialogOpen(open)}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>{editingEntity ? 'Edit Entity' : 'Add Entity'}</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div>
+                  <Label>Short Code</Label>
+                  <Input
+                    value={entityForm.shortCode}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEntityForm({ ...entityForm, shortCode: e.target.value.toUpperCase() })}
+                    placeholder="e.g. YAHSHUA"
+                    disabled={!!editingEntity}
+                  />
+                </div>
+                <div>
+                  <Label>Full Legal Name</Label>
+                  <Input
+                    value={entityForm.fullName}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEntityForm({ ...entityForm, fullName: e.target.value })}
+                    placeholder="e.g. YAHSHUA Outsourcing Worldwide Inc"
+                  />
+                </div>
+                <div>
+                  <Label>Color</Label>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="color"
+                      value={entityForm.color}
+                      onChange={(e) => setEntityForm({ ...entityForm, color: e.target.value })}
+                      className="h-9 w-14 rounded-md border border-slate-200 cursor-pointer"
+                    />
+                    <Input
+                      value={entityForm.color}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEntityForm({ ...entityForm, color: e.target.value })}
+                      placeholder="#2563eb"
+                      className="flex-1"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <Label>Display Order</Label>
+                  <Input
+                    type="number"
+                    value={entityForm.displayOrder}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEntityForm({ ...entityForm, displayOrder: Number(e.target.value) })}
+                  />
+                </div>
+                <Button
+                  className="w-full bg-blue-600 hover:bg-blue-700"
+                  onClick={async () => {
+                    if (!entityForm.shortCode || !entityForm.fullName) {
+                      toast.error('Fill in short code and full name');
+                      return;
+                    }
+                    try {
+                      if (editingEntity) {
+                        await updateEntity.mutateAsync({
+                          id: editingEntity._id,
+                          fullName: entityForm.fullName,
+                          color: entityForm.color,
+                          displayOrder: entityForm.displayOrder,
+                        });
+                        toast.success('Entity updated');
+                      } else {
+                        await createEntity.mutateAsync({
+                          shortCode: entityForm.shortCode,
+                          fullName: entityForm.fullName,
+                          color: entityForm.color,
+                          displayOrder: entityForm.displayOrder,
+                        });
+                        toast.success('Entity created');
+                      }
+                      setEntityDialogOpen(false);
+                    } catch (err: any) {
+                      toast.error(err.message ?? 'Failed to save entity');
+                    }
+                  }}
+                >
+                  {editingEntity ? 'Update Entity' : 'Create Entity'}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
         </TabsContent>
 
         <TabsContent value="import">

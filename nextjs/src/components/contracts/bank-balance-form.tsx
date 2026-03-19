@@ -24,10 +24,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { useEntities } from '@/hooks/use-entities';
 
 const balanceSchema = z.object({
   balanceDate: z.string().min(1, 'Date is required'),
-  entity: z.enum(['YAHSHUA', 'ABBA']),
+  entity: z.string().min(1, 'Entity is required'),
+  accountName: z.string().min(1, 'Account name is required'),
   balance: z.string().refine((v) => {
     const n = parseFloat(v);
     return !isNaN(n) && n >= 0;
@@ -45,7 +47,8 @@ interface BankBalanceFormProps {
 
 const emptyForm: FormData = {
   balanceDate: new Date().toISOString().split('T')[0],
-  entity: 'YAHSHUA',
+  entity: '',
+  accountName: '',
   balance: '',
   source: '',
   notes: '',
@@ -53,6 +56,7 @@ const emptyForm: FormData = {
 
 export function BankBalanceForm({ open, onOpenChange }: BankBalanceFormProps) {
   const createMutation = useCreateBankBalance();
+  const entities = useEntities() ?? [];
   const [form, setForm] = useState<FormData>(emptyForm);
   const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>>>({});
 
@@ -81,6 +85,7 @@ export function BankBalanceForm({ open, onOpenChange }: BankBalanceFormProps) {
       await createMutation.mutateAsync({
         balanceDate: result.data.balanceDate,
         entity: result.data.entity,
+        accountName: result.data.accountName,
         balance: parseFloat(result.data.balance),
         source: result.data.source,
         notes: result.data.notes || undefined,
@@ -122,27 +127,36 @@ export function BankBalanceForm({ open, onOpenChange }: BankBalanceFormProps) {
               <Label>Entity</Label>
               <Select
                 value={form.entity}
-                onValueChange={(v: string | null) => v && updateField('entity', v as 'YAHSHUA' | 'ABBA')}
+                onValueChange={(v: string | null) => v && updateField('entity', v)}
               >
                 <SelectTrigger className="w-full">
-                  <SelectValue />
+                  <SelectValue placeholder="Select entity" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="YAHSHUA">
-                    <span className="flex items-center gap-2">
-                      <span className="h-2 w-2 rounded-full bg-[#007AFF]" />
-                      YAHSHUA
-                    </span>
-                  </SelectItem>
-                  <SelectItem value="ABBA">
-                    <span className="flex items-center gap-2">
-                      <span className="h-2 w-2 rounded-full bg-[#AF52DE]" />
-                      ABBA
-                    </span>
-                  </SelectItem>
+                  {entities.map((e: any) => (
+                    <SelectItem key={e.shortCode} value={e.shortCode}>
+                      <span className="flex items-center gap-2">
+                        <span className="h-2 w-2 rounded-full" style={{ backgroundColor: e.color ?? '#64748b' }} />
+                        {e.shortCode}
+                      </span>
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
+          </div>
+
+          {/* Bank Account */}
+          <div className="space-y-1.5">
+            <Label htmlFor="accountName">Bank Account</Label>
+            <Input
+              id="accountName"
+              value={form.accountName}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateField('accountName', e.target.value)}
+              placeholder="e.g. BDO Savings, RCBC Checking"
+              className={errors.accountName ? 'border-red-300' : ''}
+            />
+            {errors.accountName && <p className="text-xs text-red-500">{errors.accountName}</p>}
           </div>
 
           {/* Balance */}

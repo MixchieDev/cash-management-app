@@ -1,6 +1,6 @@
 'use client';
 
-import { EntitySelector } from './entity-selector';
+import { AccountSelector } from './account-selector';
 
 interface PageHeaderProps {
   title: string;
@@ -20,7 +20,7 @@ export function PageHeader({ title, subtitle, showEntitySelector = true, childre
       </div>
       <div className="flex items-center gap-3">
         {children}
-        {showEntitySelector && <EntitySelector />}
+        {showEntitySelector && <AccountSelector />}
       </div>
     </div>
   );

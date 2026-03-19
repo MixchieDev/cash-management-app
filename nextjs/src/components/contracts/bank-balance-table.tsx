@@ -19,7 +19,7 @@ import { Plus, Trash2 } from 'lucide-react';
 import type { BankBalance, EntityOrConsolidated } from '@/lib/types';
 
 interface BankBalanceTableProps {
-  entity: EntityOrConsolidated;
+  entity: string;
 }
 
 export function BankBalanceTable({ entity }: BankBalanceTableProps) {
@@ -72,18 +72,19 @@ export function BankBalanceTable({ entity }: BankBalanceTableProps) {
         <Table>
           <TableHeader>
             <TableRow className="border-[#E5E5E7] bg-[#F5F5F7]/60">
-              <TableHead className="text-[#86868B] text-xs uppercase tracking-wider font-semibold">Date</TableHead>
-              <TableHead className="text-[#86868B] text-xs uppercase tracking-wider font-semibold">Entity</TableHead>
-              <TableHead className="text-[#86868B] text-xs uppercase tracking-wider font-semibold text-right">Balance</TableHead>
-              <TableHead className="text-[#86868B] text-xs uppercase tracking-wider font-semibold">Source</TableHead>
-              <TableHead className="text-[#86868B] text-xs uppercase tracking-wider font-semibold">Notes</TableHead>
-              <TableHead className="text-[#86868B] text-xs uppercase tracking-wider font-semibold w-[80px]">Actions</TableHead>
+              <TableHead className="text-slate-500 text-xs uppercase tracking-wider font-semibold">Date</TableHead>
+              <TableHead className="text-slate-500 text-xs uppercase tracking-wider font-semibold">Entity</TableHead>
+              <TableHead className="text-slate-500 text-xs uppercase tracking-wider font-semibold">Account</TableHead>
+              <TableHead className="text-slate-500 text-xs uppercase tracking-wider font-semibold text-right">Balance</TableHead>
+              <TableHead className="text-slate-500 text-xs uppercase tracking-wider font-semibold">Source</TableHead>
+              <TableHead className="text-slate-500 text-xs uppercase tracking-wider font-semibold">Notes</TableHead>
+              <TableHead className="text-slate-500 text-xs uppercase tracking-wider font-semibold w-[80px]">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {balances.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-12 text-[#86868B]">
+                <TableCell colSpan={7} className="text-center py-12 text-slate-400">
                   No bank balance snapshots yet. Add one to set starting cash for projections.
                 </TableCell>
               </TableRow>
@@ -104,7 +105,10 @@ export function BankBalanceTable({ entity }: BankBalanceTableProps) {
                       {balance.entity}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-right font-semibold text-[#1D1D1F] tabular-nums">
+                  <TableCell className="text-sm text-slate-700">
+                    {(balance as any).accountName ?? 'Main Account'}
+                  </TableCell>
+                  <TableCell className="text-right font-semibold text-slate-900 tabular-nums">
                     {formatCurrency(balance.balance)}
                   </TableCell>
                   <TableCell className="text-[#86868B]">{balance.source}</TableCell>

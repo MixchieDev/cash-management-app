@@ -3,51 +3,120 @@ import { v } from "convex/values";
 
 export const getActiveEntities = query({
   handler: async (ctx) => {
-    return await ctx.db
-      .query("entities")
-      .filter((q) => q.eq(q.field("isActive"), true))
-      .collect();
+    return (await ctx.db.query("entities").collect()).filter((e) => e.isActive);
   },
 });
 
-export const getProjectionData = query({
-  args: { entity: v.string() },
-  handler: async (ctx, args) => {
-    const entity = args.entity;
+// Get all accounts with latest balances (for account selector)
+export const getAllAccountBalances = query({
+  handler: async (ctx) => {
+    const entities = (await ctx.db.query("entities").collect()).filter((e) => e.isActive);
+    const result = [];
 
-    if (entity === "Consolidated") {
-      const activeEntities = await ctx.db
-        .query("entities")
-        .filter((q) => q.eq(q.field("isActive"), true))
+    for (const entity of entities) {
+      const balances = await ctx.db
+        .query("bankBalances")
+        .withIndex("by_entity", (q: any) => q.eq("entity", entity.shortCode))
+        .order("desc")
         .collect();
 
-      const entityCodes = activeEntities.map((e) => e.shortCode);
-      const allData = [];
-
-      for (const code of entityCodes) {
-        const data = await getEntityData(ctx, code);
-        if (data) allData.push(data);
+      // Group by accountName, take latest per account
+      const latestByAccount = new Map<string, any>();
+      for (const b of balances) {
+        const name = b.accountName ?? "Main Account";
+        if (!latestByAccount.has(name)) {
+          latestByAccount.set(name, b);
+        }
       }
 
-      return { consolidated: true, entities: allData };
+      result.push({
+        entity: entity.shortCode,
+        fullName: entity.fullName,
+        color: entity.color ?? "#64748b",
+        accounts: Array.from(latestByAccount.entries()).map(([name, b]) => ({
+          accountName: name,
+          balance: b.balance,
+          balanceDate: b.balanceDate,
+        })),
+      });
     }
 
-    const data = await getEntityData(ctx, entity);
-    return data ? { consolidated: false, entities: [data] } : { consolidated: false, entities: [] };
+    return result;
   },
 });
 
-async function getEntityData(ctx: any, entity: string) {
-  // Get ALL balances for this entity, then pick the one with latest balanceDate
+// Get projection data — accepts specific accounts to include
+export const getProjectionData = query({
+  args: {
+    accounts: v.optional(v.array(v.object({
+      entity: v.string(),
+      accountName: v.string(),
+    }))),
+  },
+  handler: async (ctx, args) => {
+    const activeEntities = (await ctx.db.query("entities").collect()).filter((e) => e.isActive);
+
+    // Determine which entities to include
+    let entityCodes: string[];
+    if (args.accounts && args.accounts.length > 0) {
+      entityCodes = [...new Set(args.accounts.map((a) => a.entity))];
+    } else {
+      // Consolidated — all active entities
+      entityCodes = activeEntities.map((e) => e.shortCode);
+    }
+
+    const allData = [];
+    for (const code of entityCodes) {
+      const data = await getEntityData(ctx, code, args.accounts);
+      if (data) allData.push(data);
+    }
+
+    return { consolidated: !args.accounts || args.accounts.length === 0, entities: allData };
+  },
+});
+
+async function getEntityData(
+  ctx: any,
+  entity: string,
+  selectedAccounts?: { entity: string; accountName: string }[]
+) {
+  // Get all balances for entity
   const allBalances = await ctx.db
     .query("bankBalances")
-    .withIndex("by_entity_date", (q: any) => q.eq("entity", entity))
+    .withIndex("by_entity", (q: any) => q.eq("entity", entity))
     .order("desc")
     .collect();
 
-  // The index is (entity, balanceDate) so desc order gives latest balanceDate first
-  const latestBalance = allBalances[0];
-  if (!latestBalance) return null;
+  // Group by account, take latest per account
+  const latestByAccount = new Map<string, any>();
+  for (const b of allBalances) {
+    const name = b.accountName ?? "Main Account";
+    if (!latestByAccount.has(name)) {
+      latestByAccount.set(name, b);
+    }
+  }
+
+  // Filter to selected accounts if specified
+  let accountsToInclude: any[];
+  if (selectedAccounts && selectedAccounts.length > 0) {
+    const selectedForEntity = selectedAccounts
+      .filter((a) => a.entity === entity)
+      .map((a) => a.accountName);
+    accountsToInclude = Array.from(latestByAccount.values()).filter(
+      (b) => selectedForEntity.includes(b.accountName ?? "Main Account")
+    );
+  } else {
+    accountsToInclude = Array.from(latestByAccount.values());
+  }
+
+  if (accountsToInclude.length === 0) return null;
+
+  // Sum balances across selected accounts
+  const startingCash = accountsToInclude.reduce((sum: number, b: any) => sum + b.balance, 0);
+  const latestDate = accountsToInclude
+    .map((b: any) => b.balanceDate)
+    .sort()
+    .reverse()[0];
 
   // Active customers
   const customers = await ctx.db
@@ -65,7 +134,7 @@ async function getEntityData(ctx: any, entity: string) {
     )
     .collect();
 
-  // Payment overrides — filter by entity to avoid cross-entity contamination
+  // Payment overrides filtered by entity
   const allCustomerOverrides = await ctx.db
     .query("paymentOverrides")
     .withIndex("by_type", (q: any) => q.eq("overrideType", "customer"))
@@ -80,8 +149,12 @@ async function getEntityData(ctx: any, entity: string) {
 
   return {
     entity,
-    startingCash: latestBalance.balance,
-    balanceDate: latestBalance.balanceDate,
+    startingCash,
+    balanceDate: latestDate,
+    accounts: accountsToInclude.map((b: any) => ({
+      accountName: b.accountName ?? "Main Account",
+      balance: b.balance,
+    })),
     customers,
     vendors,
     customerOverrides,

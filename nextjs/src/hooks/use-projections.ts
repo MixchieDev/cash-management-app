@@ -133,11 +133,14 @@ function runProjection(
   scenarioType: string,
   selectedAccountNames?: string[]
 ) {
-  // Filter contracts by bank account if specific accounts are selected
+  // Filter contracts by bank account if specific accounts are selected.
+  // Contracts WITHOUT a bankAccount are always included (they belong to the entity's default/main account).
+  // Only contracts with an EXPLICIT bankAccount are filtered.
   const filterByAccount = (contracts: any[]) => {
     if (!selectedAccountNames || selectedAccountNames.length === 0) return contracts;
     return contracts.filter((c: any) => {
-      const account = c.bankAccount ?? 'RCBC Current';
+      if (!c.bankAccount) return true; // No explicit account = include in all views
+      const account = c.bankAccount;
       return selectedAccountNames.includes(account);
     });
   };

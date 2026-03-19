@@ -8,8 +8,7 @@ import { AlertsPanel } from '@/components/dashboard/alerts-panel';
 import { TransactionModal } from '@/components/dashboard/transaction-modal';
 import { Button } from '@/components/ui/button';
 import { formatCurrency } from '@/lib/currency';
-import { calculatePeriodRange } from '@/lib/period-helpers';
-import type { Timeframe, RevenueEvent, ExpenseEvent } from '@/lib/types';
+import type { Timeframe, ProjectionDataPoint, RevenueEvent, ExpenseEvent } from '@/lib/types';
 import { useProjection } from '@/hooks/use-projections';
 import { format } from 'date-fns';
 import Link from 'next/link';
@@ -54,7 +53,7 @@ export default function DashboardPage() {
 
   const { data: projection, isLoading, balanceDate } = useProjection(selectedEntity, timeframe, scenarioType);
 
-  const dataPoints = projection?.dataPoints ?? [];
+  const dataPoints = (projection?.dataPoints ?? []) as ProjectionDataPoint[];
   const currentCash = dataPoints[0]?.startingCash ?? '0';
 
   const getProjectionAt = (index: number) =>
@@ -64,22 +63,18 @@ export default function DashboardPage() {
     if (!transactionModalDate || !projection) {
       return { revenue: [] as RevenueEvent[], expenses: [] as ExpenseEvent[], label: '' };
     }
-    const clickedDate = new Date(transactionModalDate);
-    const projStart = dataPoints.length > 0 ? new Date(dataPoints[0].date) : clickedDate;
-    const { periodStart, periodEnd, periodLabel } = calculatePeriodRange(
-      clickedDate, timeframe, projStart
-    );
-    const startStr = periodStart.toISOString().split('T')[0];
-    const endStr = periodEnd.toISOString().split('T')[0];
+    // Each data point is a single event date — filter by exact date string match
+    const dateStr = transactionModalDate; // already "YYYY-MM-DD"
+    const label = format(new Date(dateStr + 'T00:00:00Z'), 'MMMM dd, yyyy');
 
     return {
       revenue: ((projection.revenueEvents ?? []) as unknown as RevenueEvent[]).filter(
-        (e) => e.date >= startStr && e.date <= endStr
+        (e) => e.date === dateStr
       ),
       expenses: ((projection.expenseEvents ?? []) as ExpenseEvent[]).filter(
-        (e) => e.date >= startStr && e.date <= endStr
+        (e) => e.date === dateStr
       ),
-      label: periodLabel,
+      label,
     };
   })();
 
@@ -114,7 +109,7 @@ export default function DashboardPage() {
           icon={<Wallet className="h-4 w-4" />}
         />
         <KpiCard
-          label="30-Day"
+          label={dataPoints.length > 0 ? `Next Event (${dataPoints[0]?.date})` : 'Next Event'}
           value={formatCurrency(getProjectionAt(0))}
           icon={<Calendar className="h-4 w-4" />}
           change={dataPoints[0] ? formatCurrency(
@@ -123,25 +118,25 @@ export default function DashboardPage() {
           changePositive={parseFloat(getProjectionAt(0)) >= parseFloat(currentCash)}
         />
         <KpiCard
-          label="60-Day"
-          value={formatCurrency(getProjectionAt(1))}
+          label="Midpoint"
+          value={formatCurrency(getProjectionAt(Math.floor(dataPoints.length / 2)))}
           icon={<Clock className="h-4 w-4" />}
         />
         <KpiCard
-          label="90-Day"
-          value={formatCurrency(getProjectionAt(2))}
+          label={dataPoints.length > 0 ? `End (${dataPoints[dataPoints.length - 1]?.date})` : 'End'}
+          value={formatCurrency(dataPoints.length > 0 ? dataPoints[dataPoints.length - 1].endingCash : '0')}
           icon={<Timer className="h-4 w-4" />}
         />
         <KpiCard
           label="Cash Runway"
           value={isLoading ? '...' : (() => {
             const negIdx = dataPoints.findIndex((dp: any) => parseFloat(dp.endingCash) < 0);
-            if (negIdx === -1) return `${dataPoints.length}+ periods`;
-            return `${negIdx} periods`;
+            if (negIdx === -1) return 'Healthy';
+            return `Negative on ${dataPoints[negIdx]?.date}`;
           })()}
           icon={<Activity className="h-4 w-4" />}
           changePositive={!dataPoints.some((dp: any) => parseFloat(dp.endingCash) < 0)}
-          change={dataPoints.some((dp: any) => parseFloat(dp.endingCash) < 0) ? 'Goes negative' : 'Healthy'}
+          change={dataPoints.some((dp: any) => parseFloat(dp.endingCash) < 0) ? 'At risk' : 'No issues'}
         />
       </div>
 

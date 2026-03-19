@@ -74,41 +74,61 @@ export function useProjection(
     let allRevenue: ReturnType<typeof runProjection>['revenueEvents'] = [];
     let allExpenses: ReturnType<typeof runProjection>['expenseEvents'] = [];
 
+    // Collect all entity results, then merge by date
+    const allResults: ReturnType<typeof runProjection>[] = [];
     for (const ent of data.entities) {
       const result = runProjection(projector, ent, startDate, endDate, timeframe, scenarioType, getAccountNamesForEntity(ent.entity));
-
+      allResults.push(result);
       allRevenue = [...allRevenue, ...result.revenueEvents];
       allExpenses = [...allExpenses, ...result.expenseEvents];
+    }
 
-      if (!mergedDataPoints) {
-        mergedDataPoints = result.dataPoints;
-      } else {
-        for (let i = 0; i < result.dataPoints.length && i < mergedDataPoints.length; i++) {
-          const m = mergedDataPoints[i];
-          const r = result.dataPoints[i];
-          const newEndingCash = new Decimal(m.endingCash).add(r.endingCash);
-          mergedDataPoints[i] = {
-            ...m,
-            startingCash: new Decimal(m.startingCash).add(r.startingCash).toFixed(2),
-            inflows: new Decimal(m.inflows).add(r.inflows).toFixed(2),
-            outflows: new Decimal(m.outflows).add(r.outflows).toFixed(2),
-            endingCash: newEndingCash.toFixed(2),
-            entity: 'Consolidated',
-            isNegative: newEndingCash.isNegative(),
-          } as any;
+    // Merge data points by DATE across all entities
+    const dateMap = new Map<string, { startingCash: Decimal; inflows: Decimal; outflows: Decimal; endingCash: Decimal }>();
+    for (const result of allResults) {
+      let runningCashOffset = new Decimal(0);
+      for (const dp of result.dataPoints) {
+        const dateKey = dp.date;
+        const existing = dateMap.get(dateKey);
+        if (existing) {
+          existing.startingCash = existing.startingCash.add(dp.startingCash);
+          existing.inflows = existing.inflows.add(dp.inflows);
+          existing.outflows = existing.outflows.add(dp.outflows);
+          existing.endingCash = existing.endingCash.add(dp.endingCash);
+        } else {
+          dateMap.set(dateKey, {
+            startingCash: new Decimal(dp.startingCash),
+            inflows: new Decimal(dp.inflows),
+            outflows: new Decimal(dp.outflows),
+            endingCash: new Decimal(dp.endingCash),
+          });
         }
       }
     }
 
-    return {
-      dataPoints: (mergedDataPoints ?? []).map((dp: any) => ({
-        ...dp,
+    // Sort by date and build final array
+    const sortedDates = Array.from(dateMap.keys()).sort();
+    const consolidatedPoints = sortedDates.map((dateKey) => {
+      const d = dateMap.get(dateKey)!;
+      return {
+        date: dateKey,
+        startingCash: d.startingCash.toFixed(2),
+        inflows: d.inflows.toFixed(2),
+        outflows: d.outflows.toFixed(2),
+        endingCash: d.endingCash.toFixed(2),
         entity: 'Consolidated',
-      })),
+        timeframe,
+        scenarioType,
+        isNegative: d.endingCash.isNegative(),
+      };
+    });
+
+    return {
+      dataPoints: consolidatedPoints,
       revenueEvents: allRevenue,
       expenseEvents: allExpenses,
     };
-  }, [data, timeframe, scenarioType]);
+  }, [data, timeframe, scenarioType, allAccountsSelected, selectedAccounts]);
 
   // Extract the balance date for display
   const balanceDate = useMemo(() => {

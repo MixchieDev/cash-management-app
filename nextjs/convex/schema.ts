@@ -31,6 +31,7 @@ export default defineSchema({
     notes: v.optional(v.string()),
     source: v.string(), // manual | google_sheets | csv_import
     createdBy: v.optional(v.string()),
+    bankAccount: v.optional(v.string()), // e.g. "RCBC Current" — defaults to "RCBC Current" if unset
   })
     .index("by_entity", ["entity"])
     .index("by_status", ["status"])
@@ -54,6 +55,7 @@ export default defineSchema({
     notes: v.optional(v.string()),
     source: v.string(),
     createdBy: v.optional(v.string()),
+    bankAccount: v.optional(v.string()), // e.g. "RCBC Current"
   })
     .index("by_entity", ["entity"])
     .index("by_status", ["status"])

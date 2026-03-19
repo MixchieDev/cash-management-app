@@ -55,9 +55,18 @@ export function useProjection(
     const endDate = addDays(startDate, TIMEFRAME_DAYS[timeframe] ?? 365);
     const projector = new CashProjector();
 
+    // Get selected account names per entity for contract filtering
+    const getAccountNamesForEntity = (entityCode: string): string[] | undefined => {
+      if (allAccountsSelected || selectedAccounts.length === 0) return undefined;
+      const names = selectedAccounts
+        .filter((a) => a.entity === entityCode)
+        .map((a) => a.accountName);
+      return names.length > 0 ? names : undefined;
+    };
+
     if (data.entities.length === 1) {
       const ent = data.entities[0];
-      return runProjection(projector, ent, startDate, endDate, timeframe, scenarioType);
+      return runProjection(projector, ent, startDate, endDate, timeframe, scenarioType, getAccountNamesForEntity(ent.entity));
     }
 
     // Consolidated: run per entity and merge
@@ -66,7 +75,7 @@ export function useProjection(
     let allExpenses: ReturnType<typeof runProjection>['expenseEvents'] = [];
 
     for (const ent of data.entities) {
-      const result = runProjection(projector, ent, startDate, endDate, timeframe, scenarioType);
+      const result = runProjection(projector, ent, startDate, endDate, timeframe, scenarioType, getAccountNamesForEntity(ent.entity));
 
       allRevenue = [...allRevenue, ...result.revenueEvents];
       allExpenses = [...allExpenses, ...result.expenseEvents];
@@ -121,9 +130,22 @@ function runProjection(
   startDate: Date,
   endDate: Date,
   timeframe: string,
-  scenarioType: string
+  scenarioType: string,
+  selectedAccountNames?: string[]
 ) {
-  const customerContracts: CustomerContractData[] = entityData.customers.map((c: any) => ({
+  // Filter contracts by bank account if specific accounts are selected
+  const filterByAccount = (contracts: any[]) => {
+    if (!selectedAccountNames || selectedAccountNames.length === 0) return contracts;
+    return contracts.filter((c: any) => {
+      const account = c.bankAccount ?? 'RCBC Current';
+      return selectedAccountNames.includes(account);
+    });
+  };
+
+  const filteredCustomers = filterByAccount(entityData.customers);
+  const filteredVendors = filterByAccount(entityData.vendors);
+
+  const customerContracts: CustomerContractData[] = filteredCustomers.map((c: any) => ({
     id: c._id,
     companyName: c.companyName,
     monthlyFee: new Decimal(c.monthlyFee),
@@ -137,7 +159,7 @@ function runProjection(
     reliabilityScore: new Decimal(c.reliabilityScore),
   }));
 
-  const vendorContracts: VendorContractData[] = entityData.vendors.map((v: any) => ({
+  const vendorContracts: VendorContractData[] = filteredVendors.map((v: any) => ({
     id: v._id,
     vendorName: v.vendorName,
     category: v.category,

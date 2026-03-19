@@ -203,6 +203,7 @@ export function CustomerTable({ entity }: CustomerTableProps) {
               <TableHead className="text-[#86868B] text-xs uppercase tracking-wider font-semibold">Plan</TableHead>
               <TableHead className="text-[#86868B] text-xs uppercase tracking-wider font-semibold text-right">Payment Amt</TableHead>
               <TableHead className="text-[#86868B] text-xs uppercase tracking-wider font-semibold">Entity</TableHead>
+              <TableHead className="text-[#86868B] text-xs uppercase tracking-wider font-semibold">Account</TableHead>
               <TableHead className="text-[#86868B] text-xs uppercase tracking-wider font-semibold">Start Date</TableHead>
               <TableHead className="text-[#86868B] text-xs uppercase tracking-wider font-semibold">End Date</TableHead>
               <TableHead className="text-[#86868B] text-xs uppercase tracking-wider font-semibold">Status</TableHead>
@@ -255,6 +256,9 @@ export function CustomerTable({ entity }: CustomerTableProps) {
                       >
                         {customer.entity}
                       </Badge>
+                    </TableCell>
+                    <TableCell className="text-xs text-slate-500">
+                      {(customer as any).bankAccount ?? 'RCBC Current'}
                     </TableCell>
                     <TableCell className="text-[#86868B]">{formatDate(customer.contractStart)}</TableCell>
                     <TableCell className="text-[#86868B]">{formatDate(customer.contractEnd)}</TableCell>

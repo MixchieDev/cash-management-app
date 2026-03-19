@@ -38,7 +38,7 @@ const vendorSchema = z.object({
   dueDate: z.string().min(1, 'Due date/day is required'),
   startDate: z.string().optional(),
   endDate: z.string().optional(),
-  entity: z.enum(['YAHSHUA', 'ABBA']),
+  entity: z.string().min(1, 'Entity is required'),
   priority: z.string().refine((v) => {
     const n = parseInt(v);
     return n >= 1 && n <= 4;
@@ -46,6 +46,7 @@ const vendorSchema = z.object({
   flexibilityDays: z.string().optional(),
   status: z.string().min(1, 'Status is required'),
   notes: z.string().optional(),
+  bankAccount: z.string().optional(),
 });
 
 type FormData = z.infer<typeof vendorSchema>;
@@ -157,6 +158,7 @@ export function VendorForm({ open, onOpenChange, vendor }: VendorFormProps) {
       flexibilityDays: result.data.flexibilityDays ? parseInt(result.data.flexibilityDays) : 0,
       status: result.data.status,
       notes: result.data.notes || undefined,
+      bankAccount: result.data.bankAccount || 'RCBC Current',
     };
 
     try {

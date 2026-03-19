@@ -35,13 +35,14 @@ const customerSchema = z.object({
   }, 'Monthly fee must be a positive number'),
   paymentPlan: z.string().min(1, 'Payment plan is required'),
   whoAcquired: z.string().min(1, 'Acquisition source is required'),
-  entity: z.enum(['YAHSHUA', 'ABBA']),
+  entity: z.string().min(1, 'Entity is required'),
   contractStart: z.string().min(1, 'Start date is required'),
   contractEnd: z.string().optional(),
   status: z.string().min(1, 'Status is required'),
   invoiceDay: z.string().optional(),
   reliabilityScore: z.string().optional(),
   notes: z.string().optional(),
+  bankAccount: z.string().optional(),
 });
 
 type FormData = z.infer<typeof customerSchema>;
@@ -130,6 +131,7 @@ export function CustomerForm({ open, onOpenChange, customer }: CustomerFormProps
       invoiceDay: result.data.invoiceDay ? parseInt(result.data.invoiceDay) : undefined,
       reliabilityScore: parseFloat(result.data.reliabilityScore || '0.80'),
       notes: result.data.notes || undefined,
+      bankAccount: result.data.bankAccount || 'RCBC Current',
     };
 
     try {

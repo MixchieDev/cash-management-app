@@ -261,6 +261,7 @@ export function VendorTable({ entity }: VendorTableProps) {
               <TableHead className="text-[#86868B] text-xs uppercase tracking-wider font-semibold">Due Day</TableHead>
               <TableHead className="text-[#86868B] text-xs uppercase tracking-wider font-semibold text-right">Monthly Equiv.</TableHead>
               <TableHead className="text-[#86868B] text-xs uppercase tracking-wider font-semibold">Entity</TableHead>
+              <TableHead className="text-[#86868B] text-xs uppercase tracking-wider font-semibold">Account</TableHead>
               <TableHead className="text-[#86868B] text-xs uppercase tracking-wider font-semibold">Priority</TableHead>
               <TableHead className="text-[#86868B] text-xs uppercase tracking-wider font-semibold">Status</TableHead>
               <TableHead className="text-[#86868B] text-xs uppercase tracking-wider font-semibold w-[100px]">Actions</TableHead>
@@ -312,6 +313,9 @@ export function VendorTable({ entity }: VendorTableProps) {
                       >
                         {vendor.entity}
                       </Badge>
+                    </TableCell>
+                    <TableCell className="text-xs text-slate-500">
+                      {(vendor as any).bankAccount ?? 'RCBC Current'}
                     </TableCell>
                     <TableCell>
                       <Badge className={`text-[11px] font-semibold px-2 py-0.5 ${priority.color}`}>

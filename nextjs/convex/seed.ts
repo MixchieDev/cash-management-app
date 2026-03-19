@@ -36,6 +36,7 @@ export const seedAll = mutation({
         notes: v.optional(v.string()),
         source: v.string(),
         createdBy: v.optional(v.string()),
+        bankAccount: v.optional(v.string()),
       })
     ),
     vendorContracts: v.array(
@@ -54,6 +55,7 @@ export const seedAll = mutation({
         notes: v.optional(v.string()),
         source: v.string(),
         createdBy: v.optional(v.string()),
+        bankAccount: v.optional(v.string()),
       })
     ),
     bankBalances: v.array(

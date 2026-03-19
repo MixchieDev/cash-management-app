@@ -22,6 +22,7 @@ import type { VendorContract, EntityOrConsolidated } from '@/lib/types';
 
 interface VendorTableProps {
   entity: string;
+  accountFilter?: string[];
 }
 
 function calculateMonthlyEquivalent(amount: number, frequency: string): string | null {
@@ -95,7 +96,7 @@ const PRIORITY_LABELS: Record<number, { label: string; color: string }> = {
   4: { label: 'P4', color: 'bg-[#86868B]/10 text-[#86868B]' },
 };
 
-export function VendorTable({ entity }: VendorTableProps) {
+export function VendorTable({ entity, accountFilter = [] }: VendorTableProps) {
   const vendors = useVendors(entity);
   const deactivate = useDeactivateVendor();
   const deleteVendor = useDeleteVendor();
@@ -106,13 +107,27 @@ export function VendorTable({ entity }: VendorTableProps) {
 
   const filtered = useMemo(() => {
     if (!vendors) return [];
-    if (!search) return vendors;
-    const q = search.toLowerCase();
-    return vendors.filter((v: VendorContract) =>
-      v.vendorName.toLowerCase().includes(q) ||
-      v.category.toLowerCase().includes(q)
-    );
-  }, [vendors, search]);
+    let result = vendors;
+
+    // Filter by bank account
+    if (accountFilter.length > 0) {
+      result = result.filter((v: any) => {
+        if (!v.bankAccount) return true;
+        return accountFilter.includes(v.bankAccount);
+      });
+    }
+
+    // Filter by search
+    if (search) {
+      const q = search.toLowerCase();
+      result = result.filter((v: VendorContract) =>
+        v.vendorName.toLowerCase().includes(q) ||
+        v.category.toLowerCase().includes(q)
+      );
+    }
+
+    return result;
+  }, [vendors, search, accountFilter]);
 
   function handleEdit(vendor: VendorContract) {
     setEditingVendor(vendor);

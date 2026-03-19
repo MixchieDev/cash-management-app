@@ -23,9 +23,10 @@ import type { CustomerContract, EntityOrConsolidated } from '@/lib/types';
 
 interface CustomerTableProps {
   entity: string;
+  accountFilter?: string[];
 }
 
-export function CustomerTable({ entity }: CustomerTableProps) {
+export function CustomerTable({ entity, accountFilter = [] }: CustomerTableProps) {
   const customers = useCustomers(entity);
   const deactivate = useDeactivateCustomer();
   const deleteCustomer = useDeleteCustomer();
@@ -36,12 +37,26 @@ export function CustomerTable({ entity }: CustomerTableProps) {
 
   const filtered = useMemo(() => {
     if (!customers) return [];
-    if (!search) return customers;
-    const q = search.toLowerCase();
-    return customers.filter((c: CustomerContract) =>
-      c.companyName.toLowerCase().includes(q)
-    );
-  }, [customers, search]);
+    let result = customers;
+
+    // Filter by bank account if specific accounts are selected
+    if (accountFilter.length > 0) {
+      result = result.filter((c: any) => {
+        if (!c.bankAccount) return true; // No explicit account = show in all views
+        return accountFilter.includes(c.bankAccount);
+      });
+    }
+
+    // Filter by search
+    if (search) {
+      const q = search.toLowerCase();
+      result = result.filter((c: CustomerContract) =>
+        c.companyName.toLowerCase().includes(q)
+      );
+    }
+
+    return result;
+  }, [customers, search, accountFilter]);
 
   function handleEdit(customer: CustomerContract) {
     setEditingCustomer(customer);

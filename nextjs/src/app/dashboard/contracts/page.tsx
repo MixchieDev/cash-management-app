@@ -14,11 +14,16 @@ export default function ContractsPage() {
   const { allAccountsSelected, selectedAccounts } = useAppStore();
 
   // For contract lists: show all when consolidated, or filter by selected entities
-  const selectedEntity = allAccountsSelected || selectedAccounts.length === 0
-    ? 'Consolidated'
-    : [...new Set(selectedAccounts.map((a) => a.entity))].length === 1
-      ? selectedAccounts[0].entity
-      : 'Consolidated'; // Multiple entities selected = show all
+  const selectedEntities = allAccountsSelected || selectedAccounts.length === 0
+    ? []
+    : [...new Set(selectedAccounts.map((a) => a.entity))];
+
+  const selectedEntity = selectedEntities.length === 1 ? selectedEntities[0] : 'Consolidated';
+
+  // Account names for filtering contracts within an entity
+  const selectedAccountNames = allAccountsSelected || selectedAccounts.length === 0
+    ? []
+    : selectedAccounts.map((a) => a.accountName);
 
   return (
     <div className="space-y-6">
@@ -50,7 +55,7 @@ export default function ContractsPage() {
         <TabsContent value="customers" className="mt-4">
           <Card className="border-0 shadow-sm bg-transparent">
             <CardContent className="p-0">
-              <CustomerTable entity={selectedEntity} />
+              <CustomerTable entity={selectedEntity} accountFilter={selectedAccountNames} />
             </CardContent>
           </Card>
         </TabsContent>
@@ -58,7 +63,7 @@ export default function ContractsPage() {
         <TabsContent value="vendors" className="mt-4">
           <Card className="border-0 shadow-sm bg-transparent">
             <CardContent className="p-0">
-              <VendorTable entity={selectedEntity} />
+              <VendorTable entity={selectedEntity} accountFilter={selectedAccountNames} />
             </CardContent>
           </Card>
         </TabsContent>

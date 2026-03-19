@@ -65,7 +65,7 @@ export default defineSchema({
   bankBalances: defineTable({
     balanceDate: v.string(), // ISO date
     entity: v.string(),
-    accountName: v.string(), // e.g. "BDO Savings", "RCBC Checking"
+    accountName: v.optional(v.string()), // e.g. "BDO Savings", "RCBC Checking"
     balance: v.number(),
     source: v.string(),
     notes: v.optional(v.string()),

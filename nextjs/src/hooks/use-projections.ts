@@ -10,7 +10,8 @@ import type { CustomerContractData } from '@/lib/engine/revenue-calculator';
 import type { VendorContractData } from '@/lib/engine/expense-scheduler';
 import { parseDate } from '@/lib/engine/date-utils';
 import type { Timeframe, ScenarioType } from '@/lib/types';
-import { useAppStore, type SelectedAccount } from '@/stores/app-store';
+import { useAppStore } from '@/stores/app-store';
+import { useQuery as useConvexQuery } from 'convex/react';
 
 // Each timeframe shows a sensible range for its granularity
 const TIMEFRAME_DAYS: Record<string, number> = {
@@ -31,6 +32,10 @@ export function useProjection(
   scenarioType: ScenarioType
 ) {
   const { selectedAccounts, allAccountsSelected } = useAppStore();
+
+  // Read configurable delay days from settings
+  const delaySetting = useConvexQuery(api.settings.getByKey, { key: 'realistic_delay_days' });
+  const realisticDelayDays = delaySetting?.settingValue ? Number(delaySetting.settingValue) : 10;
 
   // Pass selected accounts to Convex, or undefined for consolidated
   const queryArgs = allAccountsSelected || selectedAccounts.length === 0
@@ -66,7 +71,7 @@ export function useProjection(
 
     if (data.entities.length === 1) {
       const ent = data.entities[0];
-      return runProjection(projector, ent, startDate, endDate, timeframe, scenarioType, getAccountNamesForEntity(ent.entity));
+      return runProjection(projector, ent, startDate, endDate, timeframe, scenarioType, getAccountNamesForEntity(ent.entity), realisticDelayDays);
     }
 
     // Consolidated: run per entity and merge
@@ -128,7 +133,7 @@ export function useProjection(
       revenueEvents: allRevenue,
       expenseEvents: allExpenses,
     };
-  }, [data, timeframe, scenarioType, allAccountsSelected, selectedAccounts]);
+  }, [data, timeframe, scenarioType, allAccountsSelected, selectedAccounts, realisticDelayDays]);
 
   // Extract the balance date for display
   const balanceDate = useMemo(() => {
@@ -151,7 +156,8 @@ function runProjection(
   endDate: Date,
   timeframe: string,
   scenarioType: string,
-  selectedAccountNames?: string[]
+  selectedAccountNames?: string[],
+  realisticDelayDays?: number
 ) {
   // Filter contracts by bank account if specific accounts are selected.
   // Contracts without bankAccount default to "Main Account".
@@ -201,6 +207,7 @@ function runProjection(
     entity: entityData.entity,
     timeframe,
     scenarioType,
+    realisticDelayDays,
     startingCash: new Decimal(entityData.startingCash),
     customerContracts,
     vendorContracts,

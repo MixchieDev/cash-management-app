@@ -79,59 +79,118 @@ export function useProjection(
     let allRevenue: ReturnType<typeof runProjection>['revenueEvents'] = [];
     let allExpenses: ReturnType<typeof runProjection>['expenseEvents'] = [];
 
-    // Collect all entity results, then merge by date
-    const allResults: ReturnType<typeof runProjection>[] = [];
+    // For consolidated: merge all contracts and run a single projection
+    // This ensures endingCash is always the total across ALL entities
+    const allCustomers: any[] = [];
+    const allVendors: any[] = [];
+    const allCustOverrides: any[] = [];
+    const allVendOverrides: any[] = [];
+    let totalStartingCash = new Decimal(0);
+
     for (const ent of data.entities) {
-      const result = runProjection(projector, ent, startDate, endDate, timeframe, scenarioType, getAccountNamesForEntity(ent.entity));
-      allResults.push(result);
-      allRevenue = [...allRevenue, ...result.revenueEvents];
-      allExpenses = [...allExpenses, ...result.expenseEvents];
-    }
-
-    // Merge data points by DATE across all entities
-    const dateMap = new Map<string, { startingCash: Decimal; inflows: Decimal; outflows: Decimal; endingCash: Decimal }>();
-    for (const result of allResults) {
-      let runningCashOffset = new Decimal(0);
-      for (const dp of result.dataPoints) {
-        const dateKey = dp.date;
-        const existing = dateMap.get(dateKey);
-        if (existing) {
-          existing.startingCash = existing.startingCash.add(dp.startingCash);
-          existing.inflows = existing.inflows.add(dp.inflows);
-          existing.outflows = existing.outflows.add(dp.outflows);
-          existing.endingCash = existing.endingCash.add(dp.endingCash);
-        } else {
-          dateMap.set(dateKey, {
-            startingCash: new Decimal(dp.startingCash),
-            inflows: new Decimal(dp.inflows),
-            outflows: new Decimal(dp.outflows),
-            endingCash: new Decimal(dp.endingCash),
-          });
-        }
-      }
-    }
-
-    // Sort by date and build final array
-    const sortedDates = Array.from(dateMap.keys()).sort();
-    const consolidatedPoints = sortedDates.map((dateKey) => {
-      const d = dateMap.get(dateKey)!;
-      return {
-        date: dateKey,
-        startingCash: d.startingCash.toFixed(2),
-        inflows: d.inflows.toFixed(2),
-        outflows: d.outflows.toFixed(2),
-        endingCash: d.endingCash.toFixed(2),
-        entity: 'Consolidated',
-        timeframe,
-        scenarioType,
-        isNegative: d.endingCash.isNegative(),
+      const accountNames = getAccountNamesForEntity(ent.entity);
+      const filterByAccount = (contracts: any[]) => {
+        if (!accountNames || accountNames.length === 0) return contracts;
+        return contracts.filter((c: any) => {
+          const account = c.bankAccount ?? 'Main Account';
+          return accountNames.includes(account);
+        });
       };
+
+      allCustomers.push(...filterByAccount(ent.customers).map((c: any) => ({
+        id: c._id,
+        companyName: c.companyName,
+        monthlyFee: new Decimal(c.monthlyFee),
+        paymentPlan: c.paymentPlan,
+        contractStart: parseDate(c.contractStart),
+        contractEnd: c.contractEnd ? parseDate(c.contractEnd) : null,
+        status: c.status,
+        entity: c.entity,
+        invoiceDay: c.invoiceDay ?? null,
+        paymentTermsDays: c.paymentTermsDays ?? null,
+        reliabilityScore: new Decimal(c.reliabilityScore),
+      })));
+
+      allVendors.push(...filterByAccount(ent.vendors).map((v: any) => ({
+        id: v._id,
+        vendorName: v.vendorName,
+        category: v.category,
+        amount: new Decimal(v.amount),
+        frequency: v.frequency,
+        dueDate: parseDate(v.dueDate),
+        startDate: v.startDate ? parseDate(v.startDate) : null,
+        endDate: v.endDate ? parseDate(v.endDate) : null,
+        entity: v.entity,
+        priority: v.priority,
+        flexibilityDays: v.flexibilityDays,
+        status: v.status,
+      })));
+
+      allCustOverrides.push(...ent.customerOverrides.map((o: any) => ({
+        contractId: o.contractId,
+        originalDate: parseDate(o.originalDate),
+        newDate: o.newDate ? parseDate(o.newDate) : null,
+        action: o.action,
+      })));
+
+      allVendOverrides.push(...ent.vendorOverrides.map((o: any) => ({
+        contractId: o.contractId,
+        originalDate: parseDate(o.originalDate),
+        newDate: o.newDate ? parseDate(o.newDate) : null,
+        action: o.action,
+      })));
+
+      totalStartingCash = totalStartingCash.add(ent.startingCash);
+      allRevenue = []; // Will be populated by the single projection
+      allExpenses = [];
+    }
+
+    // Run one unified projection with all entities' data combined
+    const consolidatedResult = projector.calculateProjectionDetailed({
+      startDate,
+      endDate,
+      entity: 'Consolidated',
+      timeframe,
+      scenarioType,
+      realisticDelayDays,
+      startingCash: totalStartingCash,
+      customerContracts: allCustomers,
+      vendorContracts: allVendors,
+      customerOverrides: allCustOverrides,
+      vendorOverrides: allVendOverrides,
     });
 
     return {
-      dataPoints: consolidatedPoints,
-      revenueEvents: allRevenue,
-      expenseEvents: allExpenses,
+      dataPoints: consolidatedResult.dataPoints.map((dp) => ({
+        date: dp.date.toISOString().split('T')[0],
+        startingCash: dp.startingCash.toFixed(2),
+        inflows: dp.inflows.toFixed(2),
+        outflows: dp.outflows.toFixed(2),
+        endingCash: dp.endingCash.toFixed(2),
+        entity: 'Consolidated',
+        timeframe: dp.timeframe,
+        scenarioType: dp.scenarioType,
+        isNegative: dp.isNegative,
+      })),
+      revenueEvents: consolidatedResult.revenueEvents.map((e) => ({
+        date: e.date.toISOString().split('T')[0],
+        customerId: e.customerId,
+        companyName: e.companyName,
+        amount: e.amount.toFixed(2),
+        entity: e.entity,
+        eventType: e.eventType,
+        paymentPlan: e.paymentPlan,
+      })),
+      expenseEvents: consolidatedResult.expenseEvents.map((e) => ({
+        date: e.date.toISOString().split('T')[0],
+        vendorId: e.vendorId,
+        vendorName: e.vendorName,
+        amount: e.amount.toFixed(2),
+        entity: e.entity,
+        category: e.category,
+        priority: e.priority,
+        isPayroll: e.isPayroll,
+      })),
     };
   }, [data, timeframe, scenarioType, allAccountsSelected, selectedAccounts, realisticDelayDays]);
 

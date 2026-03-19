@@ -42,8 +42,8 @@ export function CustomerTable({ entity, accountFilter = [] }: CustomerTableProps
     // Filter by bank account if specific accounts are selected
     if (accountFilter.length > 0) {
       result = result.filter((c: any) => {
-        if (!c.bankAccount) return true; // No explicit account = show in all views
-        return accountFilter.includes(c.bankAccount);
+        const account = c.bankAccount ?? 'Main Account';
+        return accountFilter.includes(account);
       });
     }
 

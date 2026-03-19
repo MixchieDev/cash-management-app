@@ -112,8 +112,8 @@ export function VendorTable({ entity, accountFilter = [] }: VendorTableProps) {
     // Filter by bank account
     if (accountFilter.length > 0) {
       result = result.filter((v: any) => {
-        if (!v.bankAccount) return true;
-        return accountFilter.includes(v.bankAccount);
+        const account = v.bankAccount ?? 'Main Account';
+        return accountFilter.includes(account);
       });
     }
 

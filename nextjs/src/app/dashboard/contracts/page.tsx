@@ -11,7 +11,14 @@ import { OverrideManager } from '@/components/contracts/override-manager';
 import { Users, Building2, Landmark, CalendarClock } from 'lucide-react';
 
 export default function ContractsPage() {
-  const { selectedEntity } = useAppStore();
+  const { allAccountsSelected, selectedAccounts } = useAppStore();
+
+  // For contract lists: show all when consolidated, or filter by selected entities
+  const selectedEntity = allAccountsSelected || selectedAccounts.length === 0
+    ? 'Consolidated'
+    : [...new Set(selectedAccounts.map((a) => a.entity))].length === 1
+      ? selectedAccounts[0].entity
+      : 'Consolidated'; // Multiple entities selected = show all
 
   return (
     <div className="space-y-6">

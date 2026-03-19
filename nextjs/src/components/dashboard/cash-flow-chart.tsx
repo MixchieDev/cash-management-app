@@ -23,11 +23,20 @@ interface CashFlowChartProps {
 export function CashFlowChart({ data, onPointClick }: CashFlowChartProps) {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
 
-  const chartData = data.map((d) => ({
-    date: d.date,
-    endingCash: parseFloat(d.endingCash),
-    label: format(new Date(d.date + 'T00:00:00Z'), 'MMM dd'),
-  }));
+  const chartData = data.map((d) => {
+    const inflows = parseFloat(d.inflows);
+    const outflows = parseFloat(d.outflows);
+    const netFlow = inflows - outflows;
+    return {
+      date: d.date,
+      endingCash: parseFloat(d.endingCash),
+      inflows,
+      outflows,
+      netFlow,
+      isPositiveDay: netFlow >= 0,
+      label: format(new Date(d.date + 'T00:00:00Z'), 'MMM dd'),
+    };
+  });
 
   const minCash = chartData.length > 0 ? Math.min(...chartData.map((d) => d.endingCash)) : 0;
   const hasNegative = minCash < 0;
@@ -72,14 +81,32 @@ export function CashFlowChart({ data, onPointClick }: CashFlowChartProps) {
               width={80}
             />
             <Tooltip
-              formatter={(value) => [formatCurrency(Number(value)), 'Cash Position']}
-              labelStyle={{ color: '#0f172a', fontWeight: 600, fontSize: 13 }}
-              contentStyle={{
-                borderRadius: 10,
-                border: '1px solid #e2e8f0',
-                boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
-                fontSize: 13,
-                padding: '8px 12px',
+              content={({ active, payload, label }: any) => {
+                if (!active || !payload?.[0]) return null;
+                const d = payload[0].payload;
+                return (
+                  <div className="rounded-lg border border-slate-200 bg-white shadow-lg p-3 text-sm min-w-[200px]">
+                    <p className="font-semibold text-slate-900 mb-1.5">{label}</p>
+                    <p className="text-slate-600">
+                      Cash: <span className="font-semibold">{formatCurrency(d.endingCash)}</span>
+                    </p>
+                    <div className="border-t border-slate-100 mt-1.5 pt-1.5 space-y-0.5">
+                      {d.inflows > 0 && (
+                        <p className="text-emerald-600 text-xs">
+                          +{formatCurrency(d.inflows)} inflows
+                        </p>
+                      )}
+                      {d.outflows > 0 && (
+                        <p className="text-red-500 text-xs">
+                          -{formatCurrency(d.outflows)} outflows
+                        </p>
+                      )}
+                      <p className={`text-xs font-semibold ${d.netFlow >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                        Net: {d.netFlow >= 0 ? '+' : ''}{formatCurrency(d.netFlow)}
+                      </p>
+                    </div>
+                  </div>
+                );
               }}
             />
 
@@ -100,10 +127,20 @@ export function CashFlowChart({ data, onPointClick }: CashFlowChartProps) {
               dataKey="endingCash"
               stroke="#2563eb"
               strokeWidth={2.5}
-              dot={{
-                r: 3,
-                fill: '#2563eb',
-                strokeWidth: 0,
+              dot={(props: any) => {
+                const { cx, cy, payload } = props;
+                const color = payload.netFlow >= 0 ? '#10b981' : '#ef4444';
+                return (
+                  <circle
+                    key={`dot-${payload.date}`}
+                    cx={cx}
+                    cy={cy}
+                    r={4}
+                    fill={color}
+                    stroke="#fff"
+                    strokeWidth={1.5}
+                  />
+                );
               }}
               activeDot={{
                 r: 7,

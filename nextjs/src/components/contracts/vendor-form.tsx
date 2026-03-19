@@ -80,7 +80,7 @@ const emptyForm: FormData = {
   flexibilityDays: '',
   status: 'Active',
   notes: '',
-  bankAccount: 'RCBC Current',
+  bankAccount: 'Main Account',
 };
 
 export function VendorForm({ open, onOpenChange, vendor }: VendorFormProps) {
@@ -106,7 +106,7 @@ export function VendorForm({ open, onOpenChange, vendor }: VendorFormProps) {
         flexibilityDays: vendor.flexibilityDays.toString(),
         status: vendor.status,
         notes: vendor.notes ?? '',
-        bankAccount: (vendor as any).bankAccount ?? 'RCBC Current',
+        bankAccount: (vendor as any).bankAccount ?? 'Main Account',
       });
     } else {
       setForm(emptyForm);
@@ -161,7 +161,7 @@ export function VendorForm({ open, onOpenChange, vendor }: VendorFormProps) {
       flexibilityDays: result.data.flexibilityDays ? parseInt(result.data.flexibilityDays) : 0,
       status: result.data.status,
       notes: result.data.notes || undefined,
-      bankAccount: result.data.bankAccount || 'RCBC Current',
+      bankAccount: result.data.bankAccount || 'Main Account',
     };
 
     try {
@@ -311,7 +311,7 @@ export function VendorForm({ open, onOpenChange, vendor }: VendorFormProps) {
           {/* Bank Account */}
           <BankAccountSelect
             entity={form.entity}
-            value={form.bankAccount ?? 'RCBC Current'}
+            value={form.bankAccount ?? 'Main Account'}
             onChange={(v) => updateField('bankAccount', v)}
           />
 

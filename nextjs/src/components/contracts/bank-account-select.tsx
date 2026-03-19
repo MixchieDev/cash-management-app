@@ -23,8 +23,8 @@ export function BankAccountSelect({ entity, value, onChange }: BankAccountSelect
   const entityGroup = accountData.find((e: any) => e.entity === entity);
   const accounts = entityGroup?.accounts?.map((a: any) => a.accountName) ?? [];
 
-  // Always include current value and "RCBC Current" as options
-  const allOptions = [...new Set([...accounts, value, 'RCBC Current'])].filter(Boolean).sort();
+  // Only show accounts that actually exist in Bank Balances
+  const allOptions = [...new Set([...accounts, ...(value && value !== 'Main Account' ? [value] : [])])].filter(Boolean).sort();
 
   return (
     <div className="space-y-1.5">

@@ -258,7 +258,7 @@ export function CustomerTable({ entity }: CustomerTableProps) {
                       </Badge>
                     </TableCell>
                     <TableCell className="text-xs text-slate-500">
-                      {(customer as any).bankAccount ?? 'RCBC Current'}
+                      {(customer as any).bankAccount ?? 'Main Account'}
                     </TableCell>
                     <TableCell className="text-[#86868B]">{formatDate(customer.contractStart)}</TableCell>
                     <TableCell className="text-[#86868B]">{formatDate(customer.contractEnd)}</TableCell>

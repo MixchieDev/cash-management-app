@@ -315,7 +315,7 @@ export function VendorTable({ entity }: VendorTableProps) {
                       </Badge>
                     </TableCell>
                     <TableCell className="text-xs text-slate-500">
-                      {(vendor as any).bankAccount ?? 'RCBC Current'}
+                      {(vendor as any).bankAccount ?? 'Main Account'}
                     </TableCell>
                     <TableCell>
                       <Badge className={`text-[11px] font-semibold px-2 py-0.5 ${priority.color}`}>

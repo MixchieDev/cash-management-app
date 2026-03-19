@@ -68,7 +68,7 @@ const emptyForm: FormData = {
   invoiceDay: '',
   reliabilityScore: '0.80',
   notes: '',
-  bankAccount: 'RCBC Current',
+  bankAccount: 'Main Account',
 };
 
 export function CustomerForm({ open, onOpenChange, customer }: CustomerFormProps) {
@@ -93,7 +93,7 @@ export function CustomerForm({ open, onOpenChange, customer }: CustomerFormProps
         invoiceDay: customer.invoiceDay?.toString() ?? '',
         reliabilityScore: customer.reliabilityScore?.toString() ?? '0.80',
         notes: customer.notes ?? '',
-        bankAccount: (customer as any).bankAccount ?? 'RCBC Current',
+        bankAccount: (customer as any).bankAccount ?? 'Main Account',
       });
     } else {
       setForm(emptyForm);
@@ -134,7 +134,7 @@ export function CustomerForm({ open, onOpenChange, customer }: CustomerFormProps
       invoiceDay: result.data.invoiceDay ? parseInt(result.data.invoiceDay) : undefined,
       reliabilityScore: parseFloat(result.data.reliabilityScore || '0.80'),
       notes: result.data.notes || undefined,
-      bankAccount: result.data.bankAccount || 'RCBC Current',
+      bankAccount: result.data.bankAccount || 'Main Account',
     };
 
     try {
@@ -270,7 +270,7 @@ export function CustomerForm({ open, onOpenChange, customer }: CustomerFormProps
           {/* Bank Account */}
           <BankAccountSelect
             entity={form.entity}
-            value={form.bankAccount ?? 'RCBC Current'}
+            value={form.bankAccount ?? 'Main Account'}
             onChange={(v) => updateField('bankAccount', v)}
           />
 

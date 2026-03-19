@@ -47,6 +47,7 @@ export const create = mutation({
     notes: v.optional(v.string()),
     source: v.string(),
     createdBy: v.optional(v.string()),
+    bankAccount: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     return await ctx.db.insert("vendorContracts", args);
@@ -68,6 +69,7 @@ export const update = mutation({
     flexibilityDays: v.optional(v.number()),
     status: v.optional(v.string()),
     notes: v.optional(v.string()),
+    bankAccount: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const { id, ...fields } = args;

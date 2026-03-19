@@ -26,6 +26,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import type { CustomerContract } from '@/lib/types';
+import { BankAccountSelect } from './bank-account-select';
 
 const customerSchema = z.object({
   companyName: z.string().min(1, 'Company name is required'),
@@ -267,15 +268,11 @@ export function CustomerForm({ open, onOpenChange, customer }: CustomerFormProps
           </div>
 
           {/* Bank Account */}
-          <div className="space-y-1.5">
-            <Label htmlFor="bankAccount">Bank Account</Label>
-            <Input
-              id="bankAccount"
-              value={form.bankAccount ?? 'RCBC Current'}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateField('bankAccount', e.target.value)}
-              placeholder="e.g. RCBC Current, BDO Savings"
-            />
-          </div>
+          <BankAccountSelect
+            entity={form.entity}
+            value={form.bankAccount ?? 'RCBC Current'}
+            onChange={(v) => updateField('bankAccount', v)}
+          />
 
           {/* Contract Start + End */}
           <div className="grid grid-cols-2 gap-3">

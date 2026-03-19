@@ -26,6 +26,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import type { VendorContract } from '@/lib/types';
+import { BankAccountSelect } from './bank-account-select';
 
 const vendorSchema = z.object({
   vendorName: z.string().min(1, 'Vendor name is required'),
@@ -308,15 +309,11 @@ export function VendorForm({ open, onOpenChange, vendor }: VendorFormProps) {
           </div>
 
           {/* Bank Account */}
-          <div className="space-y-1.5">
-            <Label htmlFor="bankAccount">Bank Account</Label>
-            <Input
-              id="bankAccount"
-              value={form.bankAccount ?? 'RCBC Current'}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateField('bankAccount', e.target.value)}
-              placeholder="e.g. RCBC Current, BDO Savings"
-            />
-          </div>
+          <BankAccountSelect
+            entity={form.entity}
+            value={form.bankAccount ?? 'RCBC Current'}
+            onChange={(v) => updateField('bankAccount', v)}
+          />
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">

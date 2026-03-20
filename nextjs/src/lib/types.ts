@@ -49,6 +49,7 @@ export type PermissionKey =
   | 'import_data'
   | 'manage_settings'
   | 'delete_data'
+  | 'view_projections'
   | 'manage_users';
 
 // ═══════════════════════════════════════════════════════════════════

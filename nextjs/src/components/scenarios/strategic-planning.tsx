@@ -26,10 +26,19 @@ export function StrategicPlanning() {
 
   // Calculate current metrics from projection
   const dataPoints = projection?.dataPoints ?? [];
+  const revenueEvents = projection?.revenueEvents ?? [];
   const currentCash = dataPoints.length > 0 ? parseFloat(dataPoints[0].startingCash) : 0;
-  const totalMonthlyInflows = dataPoints.length > 0 ? parseFloat(dataPoints[0].inflows) : 0;
-  const totalMonthlyOutflows = dataPoints.length > 0 ? parseFloat(dataPoints[0].outflows) : 0;
-  const annualRevenue = totalMonthlyInflows * 12;
+
+  // Annual revenue = sum of all revenue events in the 12-month projection
+  const annualRevenue = revenueEvents.reduce((sum, e) => sum + parseFloat(e.amount), 0);
+
+  // Average monthly inflows/outflows across all data points for a representative month
+  const totalMonthlyInflows = dataPoints.length > 0
+    ? dataPoints.reduce((sum, dp) => sum + parseFloat(dp.inflows), 0) / dataPoints.length
+    : 0;
+  const totalMonthlyOutflows = dataPoints.length > 0
+    ? dataPoints.reduce((sum, dp) => sum + parseFloat(dp.outflows), 0) / dataPoints.length
+    : 0;
 
   const monthlyPayrollImpact = calcEmployees * calcSalary;
   const annualPayrollImpact = monthlyPayrollImpact * 12;

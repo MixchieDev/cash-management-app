@@ -8,7 +8,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useAccountBalances } from '@/hooks/use-entities';
+import { useBankAccountsForEntity } from '@/hooks/use-bank-accounts';
 
 interface BankAccountSelectProps {
   entity: string;
@@ -17,14 +17,10 @@ interface BankAccountSelectProps {
 }
 
 export function BankAccountSelect({ entity, value, onChange }: BankAccountSelectProps) {
-  const accountData = useAccountBalances() ?? [];
+  const accounts = useBankAccountsForEntity(entity);
 
-  // Get accounts for the selected entity
-  const entityGroup = accountData.find((e: any) => e.entity === entity);
-  const accounts = entityGroup?.accounts?.map((a: any) => a.accountName) ?? [];
-
-  // Only show accounts that actually exist in Bank Balances
-  const allOptions = [...new Set([...accounts, ...(value && value !== 'Main Account' ? [value] : [])])].filter(Boolean).sort();
+  // Include current value if it's not in the list (legacy data)
+  const allOptions = [...new Set([...accounts, ...(value && !accounts.includes(value) ? [value] : [])])].sort();
 
   return (
     <div className="space-y-1.5">
@@ -45,7 +41,7 @@ export function BankAccountSelect({ entity, value, onChange }: BankAccountSelect
         </SelectContent>
       </Select>
       <p className="text-[10px] text-slate-400">
-        Bank accounts are created in Contracts &gt; Bank Balances
+        Manage accounts in Settings &gt; Bank Accounts
       </p>
     </div>
   );

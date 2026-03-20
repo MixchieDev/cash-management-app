@@ -14,6 +14,7 @@ export const ALL_PERMISSIONS: { key: PermissionKey; label: string; description: 
   { key: 'import_data', label: 'Import Data', description: 'Upload CSV data imports' },
   { key: 'manage_settings', label: 'Manage Settings', description: 'Change payment terms & config' },
   { key: 'delete_data', label: 'Delete Data', description: 'Use Danger Zone bulk deletes' },
+  { key: 'view_projections', label: 'View Projections', description: 'View cash flow projection chart & detailed forecasts' },
   { key: 'manage_users', label: 'Manage Users', description: 'Add/edit/delete users & permissions' },
 ];
 
@@ -28,6 +29,7 @@ export const ROLE_TEMPLATES: Record<UserRole, PermissionKey[]> = {
     'view_scenarios',
     'edit_scenarios',
     'manage_overrides',
+    'view_projections',
   ],
   viewer: [
     'view_dashboard',

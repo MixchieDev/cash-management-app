@@ -27,8 +27,19 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { Download } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Download, X, Plus, Upload, Loader2 } from 'lucide-react';
 import { downloadTemplate } from '@/lib/import-templates';
+import { useAcquisitionSources, DEFAULT_SOURCES } from '@/hooks/use-acquisition-sources';
+import { useBankAccounts, DEFAULT_ACCOUNTS, type BankAccount } from '@/hooks/use-bank-accounts';
+import { useCreateCustomer, useCreateVendor, useCreateBankBalance } from '@/hooks/use-contracts';
+import { parseCSV, mapCustomerRow, mapVendorRow, mapBalanceRow } from '@/lib/csv-parser';
 
 export default function SettingsPage() {
   const settings = useSettings() ?? [];
@@ -43,6 +54,22 @@ export default function SettingsPage() {
   const [entityDialogOpen, setEntityDialogOpen] = useState(false);
   const [editingEntity, setEditingEntity] = useState<any>(null);
   const [entityForm, setEntityForm] = useState({ shortCode: '', fullName: '', color: '#2563eb', displayOrder: 0 });
+
+  // Acquisition sources
+  const acquisitionSources = useAcquisitionSources();
+  const [newSource, setNewSource] = useState('');
+
+  // Bank accounts
+  const bankAccounts = useBankAccounts();
+  const [newAccount, setNewAccount] = useState('');
+  const [newAccountEntity, setNewAccountEntity] = useState('');
+
+  // CSV import
+  const createCustomer = useCreateCustomer();
+  const createVendor = useCreateVendor();
+  const createBalance = useCreateBankBalance();
+  const [importFiles, setImportFiles] = useState<Record<string, File | null>>({});
+  const [importing, setImporting] = useState<string | null>(null);
 
   // Payment terms state
   const [delayDays, setDelayDays] = useState(10);
@@ -74,6 +101,136 @@ export default function SettingsPage() {
     }
   }
 
+  async function saveAcquisitionSources(sources: string[]) {
+    try {
+      await updateSetting.mutateAsync({
+        key: 'acquisition_sources',
+        value: JSON.stringify(sources),
+        settingType: 'json',
+        category: 'contracts',
+        description: 'List of acquisition source options for customer contracts',
+      });
+      toast.success('Acquisition sources updated');
+    } catch {
+      toast.error('Failed to update acquisition sources');
+    }
+  }
+
+  async function addSource() {
+    const trimmed = newSource.trim();
+    if (!trimmed) return;
+    if (acquisitionSources.includes(trimmed)) {
+      toast.error('Source already exists');
+      return;
+    }
+    await saveAcquisitionSources([...acquisitionSources, trimmed]);
+    setNewSource('');
+  }
+
+  async function removeSource(source: string) {
+    await saveAcquisitionSources(acquisitionSources.filter((s) => s !== source));
+  }
+
+  async function resetSources() {
+    await saveAcquisitionSources(DEFAULT_SOURCES);
+  }
+
+  async function saveBankAccounts(accounts: BankAccount[]) {
+    try {
+      await updateSetting.mutateAsync({
+        key: 'bank_accounts',
+        value: JSON.stringify(accounts),
+        settingType: 'json',
+        category: 'contracts',
+        description: 'List of bank account options for contracts and balances',
+      });
+      toast.success('Bank accounts updated');
+    } catch {
+      toast.error('Failed to update bank accounts');
+    }
+  }
+
+  async function addAccount() {
+    const trimmed = newAccount.trim();
+    if (!trimmed || !newAccountEntity) return;
+    if (bankAccounts.some((a) => a.name === trimmed && a.entity === newAccountEntity)) {
+      toast.error('Account already exists for this entity');
+      return;
+    }
+    await saveBankAccounts([...bankAccounts, { name: trimmed, entity: newAccountEntity }]);
+    setNewAccount('');
+  }
+
+  async function removeAccount(account: BankAccount) {
+    await saveBankAccounts(bankAccounts.filter((a) => !(a.name === account.name && a.entity === account.entity)));
+  }
+
+  async function resetAccounts() {
+    await saveBankAccounts(DEFAULT_ACCOUNTS);
+  }
+
+  async function handleImport(type: 'customers' | 'vendors' | 'balances') {
+    const file = importFiles[type];
+    if (!file) {
+      toast.error('Please select a CSV file first');
+      return;
+    }
+
+    setImporting(type);
+    try {
+      const text = await file.text();
+      const { rows } = parseCSV(text);
+
+      if (rows.length === 0) {
+        toast.error('No data rows found in CSV');
+        setImporting(null);
+        return;
+      }
+
+      let imported = 0;
+      let skipped = 0;
+
+      if (type === 'customers') {
+        for (const row of rows) {
+          const mapped = mapCustomerRow(row);
+          if (mapped) {
+            await createCustomer.mutateAsync(mapped);
+            imported++;
+          } else {
+            skipped++;
+          }
+        }
+      } else if (type === 'vendors') {
+        for (const row of rows) {
+          const mapped = mapVendorRow(row);
+          if (mapped) {
+            await createVendor.mutateAsync(mapped);
+            imported++;
+          } else {
+            skipped++;
+          }
+        }
+      } else {
+        for (const row of rows) {
+          const mapped = mapBalanceRow(row);
+          if (mapped) {
+            await createBalance.mutateAsync(mapped);
+            imported++;
+          } else {
+            skipped++;
+          }
+        }
+      }
+
+      toast.success(`Imported ${imported} record${imported !== 1 ? 's' : ''}${skipped > 0 ? `, ${skipped} skipped` : ''}`);
+      setImportFiles((prev) => ({ ...prev, [type]: null }));
+    } catch (err: any) {
+      toast.error(err.message ?? 'Import failed');
+    } finally {
+      setImporting(null);
+    }
+  }
+
   async function saveAlertThresholds() {
     try {
       await updateSetting.mutateAsync({
@@ -99,9 +256,11 @@ export default function SettingsPage() {
       />
 
       <Tabs defaultValue="payment">
-        <TabsList>
+        <TabsList className="flex flex-wrap h-auto gap-1">
           <TabsTrigger value="payment">Payment Terms</TabsTrigger>
           <TabsTrigger value="entities">Entities</TabsTrigger>
+          <TabsTrigger value="sources">Acquisition Sources</TabsTrigger>
+          <TabsTrigger value="accounts">Bank Accounts</TabsTrigger>
           <TabsTrigger value="import">Data Import</TabsTrigger>
           <TabsTrigger value="audit">Audit Log</TabsTrigger>
         </TabsList>
@@ -359,6 +518,156 @@ export default function SettingsPage() {
           </Dialog>
         </TabsContent>
 
+        <TabsContent value="sources">
+          <Card className="border-0 shadow-sm">
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="text-base">Acquisition Sources</CardTitle>
+                <p className="text-xs text-[#86868B] mt-1">
+                  Manage the &ldquo;Acquired By&rdquo; options available when creating customer contracts.
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-xs"
+                onClick={resetSources}
+              >
+                Reset to Defaults
+              </Button>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex gap-2">
+                <Input
+                  value={newSource}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewSource(e.target.value)}
+                  placeholder="New acquisition source name"
+                  onKeyDown={(e: React.KeyboardEvent) => e.key === 'Enter' && addSource()}
+                />
+                <Button
+                  onClick={addSource}
+                  className="bg-[#007AFF] hover:bg-[#007AFF]/90 gap-1"
+                  disabled={!newSource.trim() || updateSetting.isPending}
+                >
+                  <Plus className="h-4 w-4" />
+                  Add
+                </Button>
+              </div>
+
+              <div className="space-y-2">
+                {acquisitionSources.map((source) => (
+                  <div
+                    key={source}
+                    className="flex items-center justify-between rounded-xl border border-slate-200 px-4 py-2.5"
+                  >
+                    <span className="text-sm text-slate-900">{source}</span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 w-7 p-0 text-slate-400 hover:text-red-500"
+                      onClick={() => removeSource(source)}
+                      disabled={updateSetting.isPending}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+                {acquisitionSources.length === 0 && (
+                  <p className="text-center text-slate-400 py-8">
+                    No sources configured. Click &ldquo;Reset to Defaults&rdquo; to restore the default list.
+                  </p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="accounts">
+          <Card className="border-0 shadow-sm">
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="text-base">Bank Accounts</CardTitle>
+                <p className="text-xs text-[#86868B] mt-1">
+                  Manage bank account options used in contracts and balance snapshots.
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-xs"
+                onClick={resetAccounts}
+              >
+                Reset to Defaults
+              </Button>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex gap-2">
+                <Select
+                  value={newAccountEntity}
+                  onValueChange={(v: string | null) => v && setNewAccountEntity(v)}
+                >
+                  <SelectTrigger className="w-[140px]">
+                    <SelectValue placeholder="Entity" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {allEntities.filter((e: any) => e.isActive).map((e: any) => (
+                      <SelectItem key={e.shortCode} value={e.shortCode}>
+                        <span className="flex items-center gap-2">
+                          <span className="h-2 w-2 rounded-full" style={{ backgroundColor: e.color ?? '#64748b' }} />
+                          {e.shortCode}
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Input
+                  value={newAccount}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewAccount(e.target.value)}
+                  placeholder="Account name (e.g. BDO Savings)"
+                  onKeyDown={(e: React.KeyboardEvent) => e.key === 'Enter' && addAccount()}
+                  className="flex-1"
+                />
+                <Button
+                  onClick={addAccount}
+                  className="bg-[#007AFF] hover:bg-[#007AFF]/90 gap-1"
+                  disabled={!newAccount.trim() || !newAccountEntity || updateSetting.isPending}
+                >
+                  <Plus className="h-4 w-4" />
+                  Add
+                </Button>
+              </div>
+
+              <div className="space-y-2">
+                {bankAccounts.map((account) => (
+                  <div
+                    key={`${account.entity}-${account.name}`}
+                    className="flex items-center justify-between rounded-xl border border-slate-200 px-4 py-2.5"
+                  >
+                    <div className="flex items-center gap-3">
+                      <Badge variant="secondary" className="text-[10px]">{account.entity}</Badge>
+                      <span className="text-sm text-slate-900">{account.name}</span>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 w-7 p-0 text-slate-400 hover:text-red-500"
+                      onClick={() => removeAccount(account)}
+                      disabled={updateSetting.isPending}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+                {bankAccounts.length === 0 && (
+                  <p className="text-center text-slate-400 py-8">
+                    No accounts configured. Click &ldquo;Reset to Defaults&rdquo; to restore the default list.
+                  </p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         <TabsContent value="import">
           <div className="space-y-6">
             {([
@@ -380,12 +689,35 @@ export default function SettingsPage() {
                   </Button>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <Input type="file" accept=".csv" />
+                  <Input
+                    type="file"
+                    accept=".csv"
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                      const file = e.target.files?.[0] ?? null;
+                      setImportFiles((prev) => ({ ...prev, [type.key]: file }));
+                    }}
+                  />
                   <p className="text-xs text-[#86868B]">
                     Upload a CSV file with the appropriate columns for {type.label.toLowerCase()}.
                     Download the template above for the expected format.
                   </p>
-                  <Button className="bg-[#007AFF]" disabled>Import</Button>
+                  <Button
+                    className="bg-[#007AFF] gap-1.5"
+                    disabled={!importFiles[type.key] || importing !== null}
+                    onClick={() => handleImport(type.key)}
+                  >
+                    {importing === type.key ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Importing...
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="h-4 w-4" />
+                        Import
+                      </>
+                    )}
+                  </Button>
                 </CardContent>
               </Card>
             ))}

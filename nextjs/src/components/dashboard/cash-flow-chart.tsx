@@ -23,6 +23,12 @@ interface CashFlowChartProps {
 export function CashFlowChart({ data, onPointClick }: CashFlowChartProps) {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
 
+  // Detect if the data spans more than 1 year to choose label format
+  const firstDate = data.length > 0 ? new Date(data[0].date + 'T00:00:00Z') : new Date();
+  const lastDate = data.length > 1 ? new Date(data[data.length - 1].date + 'T00:00:00Z') : firstDate;
+  const spanYears = lastDate.getUTCFullYear() - firstDate.getUTCFullYear();
+  const labelFormat = spanYears >= 1 ? "MMM ''yy" : 'MMM dd';
+
   const chartData = data.map((d) => {
     const inflows = parseFloat(d.inflows);
     const outflows = parseFloat(d.outflows);
@@ -34,7 +40,7 @@ export function CashFlowChart({ data, onPointClick }: CashFlowChartProps) {
       outflows,
       netFlow,
       isPositiveDay: netFlow >= 0,
-      label: format(new Date(d.date + 'T00:00:00Z'), 'MMM dd'),
+      label: format(new Date(d.date + 'T00:00:00Z'), labelFormat),
     };
   });
 
@@ -72,6 +78,10 @@ export function CashFlowChart({ data, onPointClick }: CashFlowChartProps) {
               tick={{ fontSize: 11, fill: '#94a3b8' }}
               tickLine={false}
               axisLine={{ stroke: '#e2e8f0' }}
+              interval={chartData.length > 24 ? Math.floor(chartData.length / 12) - 1 : chartData.length > 12 ? 2 : 0}
+              angle={chartData.length > 20 ? -30 : 0}
+              textAnchor={chartData.length > 20 ? 'end' : 'middle'}
+              height={chartData.length > 20 ? 50 : 30}
             />
             <YAxis
               tickFormatter={(v) => formatCurrencyCompact(v)}
@@ -128,14 +138,17 @@ export function CashFlowChart({ data, onPointClick }: CashFlowChartProps) {
               stroke="#2563eb"
               strokeWidth={2.5}
               dot={(props: any) => {
-                const { cx, cy, payload } = props;
+                const { cx, cy, payload, index } = props;
+                // Hide dots when there are many points to reduce clutter
+                if (chartData.length > 24 && index % 2 !== 0) return <circle key={`dot-${payload.date}`} r={0} />;
                 const color = payload.netFlow >= 0 ? '#10b981' : '#ef4444';
+                const dotSize = chartData.length > 20 ? 3 : 4;
                 return (
                   <circle
                     key={`dot-${payload.date}`}
                     cx={cx}
                     cy={cy}
-                    r={4}
+                    r={dotSize}
                     fill={color}
                     stroke="#fff"
                     strokeWidth={1.5}

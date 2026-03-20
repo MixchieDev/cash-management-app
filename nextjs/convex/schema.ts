@@ -29,13 +29,16 @@ export default defineSchema({
     paymentTermsDays: v.optional(v.number()),
     reliabilityScore: v.number(), // 0-1
     notes: v.optional(v.string()),
-    source: v.string(), // manual | google_sheets | csv_import
+    source: v.string(), // manual | google_sheets | csv_import | billing-sync
     createdBy: v.optional(v.string()),
     bankAccount: v.optional(v.string()), // e.g. "RCBC Current" — defaults to "RCBC Current" if unset
+    customerNumber: v.optional(v.string()), // unique ID from billing app for dedup
+    externalId: v.optional(v.string()), // billing app CUID
   })
     .index("by_entity", ["entity"])
     .index("by_status", ["status"])
-    .index("by_entity_status", ["entity", "status"]),
+    .index("by_entity_status", ["entity", "status"])
+    .index("by_customerNumber", ["customerNumber"]),
 
   // ═══════════════════════════════════════════════════════════════
   // Vendor Contracts

@@ -96,3 +96,43 @@ export const remove = mutation({
     await ctx.db.delete(args.id);
   },
 });
+
+// Upsert by customerNumber — used by billing app sync
+export const upsertByCustomerNumber = mutation({
+  args: {
+    customerNumber: v.string(),
+    companyName: v.string(),
+    monthlyFee: v.number(),
+    paymentPlan: v.string(),
+    contractStart: v.string(),
+    contractEnd: v.optional(v.string()),
+    status: v.string(),
+    whoAcquired: v.string(),
+    entity: v.string(),
+    invoiceDay: v.optional(v.number()),
+    reliabilityScore: v.number(),
+    notes: v.optional(v.string()),
+    bankAccount: v.optional(v.string()),
+    externalId: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const existing = await ctx.db
+      .query("customerContracts")
+      .withIndex("by_customerNumber", (q) => q.eq("customerNumber", args.customerNumber))
+      .first();
+
+    if (existing) {
+      // Update existing contract with latest data
+      const { customerNumber, externalId, ...updateFields } = args;
+      await ctx.db.patch(existing._id, { ...updateFields, externalId });
+      return { action: "updated" as const, id: existing._id };
+    }
+
+    // Insert new contract
+    const id = await ctx.db.insert("customerContracts", {
+      ...args,
+      source: "billing-sync",
+    });
+    return { action: "created" as const, id };
+  },
+});

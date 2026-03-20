@@ -15,8 +15,9 @@ import {
 } from '@/components/ui/table';
 import { BankBalanceForm } from './bank-balance-form';
 import { toast } from 'sonner';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, AlertTriangle } from 'lucide-react';
 import type { BankBalance, EntityOrConsolidated } from '@/lib/types';
+import { useBankAccounts } from '@/hooks/use-bank-accounts';
 
 interface BankBalanceTableProps {
   entity: string;
@@ -25,7 +26,9 @@ interface BankBalanceTableProps {
 export function BankBalanceTable({ entity }: BankBalanceTableProps) {
   const balances = useBankBalances(entity);
   const deleteMutation = useDeleteBankBalance();
+  const bankAccounts = useBankAccounts();
   const [formOpen, setFormOpen] = useState(false);
+  const noAccounts = bankAccounts.length === 0;
 
   async function handleDelete(id: string) {
     try {
@@ -54,6 +57,16 @@ export function BankBalanceTable({ entity }: BankBalanceTableProps) {
 
   return (
     <div className="space-y-4">
+      {/* No accounts warning */}
+      {noAccounts && (
+        <div className="flex items-center gap-3 rounded-xl border-l-4 border-[#FF9500] bg-[#FF9500]/5 px-4 py-3">
+          <AlertTriangle className="h-4 w-4 text-[#FF9500] flex-shrink-0" />
+          <p className="text-sm text-[#1D1D1F]">
+            No bank accounts configured. Go to <span className="font-medium">Settings &gt; Bank Accounts</span> to add accounts before recording balances.
+          </p>
+        </div>
+      )}
+
       {/* Toolbar */}
       <div className="flex items-center justify-between gap-4">
         <div>

@@ -28,6 +28,7 @@ import {
 import type { CustomerContract } from '@/lib/types';
 import { BankAccountSelect } from './bank-account-select';
 import { useEntities } from '@/hooks/use-entities';
+import { useAcquisitionSources } from '@/hooks/use-acquisition-sources';
 
 const customerSchema = z.object({
   companyName: z.string().min(1, 'Company name is required'),
@@ -55,8 +56,6 @@ interface CustomerFormProps {
   customer: CustomerContract | null;
 }
 
-const ACQUISITION_SOURCES = ['RCBC Partner', 'Globe Partner', 'YOWI', 'TAI', 'PEI'];
-
 const emptyForm: FormData = {
   companyName: '',
   monthlyFee: '',
@@ -76,6 +75,7 @@ export function CustomerForm({ open, onOpenChange, customer }: CustomerFormProps
   const createMutation = useCreateCustomer();
   const updateMutation = useUpdateCustomer();
   const entities = useEntities() ?? [];
+  const acquisitionSources = useAcquisitionSources();
   const isEditing = !!customer;
 
   const [form, setForm] = useState<FormData>(emptyForm);
@@ -236,7 +236,7 @@ export function CustomerForm({ open, onOpenChange, customer }: CustomerFormProps
                   <SelectValue placeholder="Select source" />
                 </SelectTrigger>
                 <SelectContent>
-                  {ACQUISITION_SOURCES.map((src) => (
+                  {acquisitionSources.map((src) => (
                     <SelectItem key={src} value={src}>
                       {src}
                     </SelectItem>

@@ -11,6 +11,7 @@
 import type * as bankBalances from "../bankBalances.js";
 import type * as customers from "../customers.js";
 import type * as entities from "../entities.js";
+import type * as http from "../http.js";
 import type * as overrides from "../overrides.js";
 import type * as projections from "../projections.js";
 import type * as scenarios from "../scenarios.js";
@@ -29,6 +30,7 @@ declare const fullApi: ApiFromModules<{
   bankBalances: typeof bankBalances;
   customers: typeof customers;
   entities: typeof entities;
+  http: typeof http;
   overrides: typeof overrides;
   projections: typeof projections;
   scenarios: typeof scenarios;

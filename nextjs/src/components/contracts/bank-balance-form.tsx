@@ -25,6 +25,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useEntities } from '@/hooks/use-entities';
+import { useBankAccountsForEntity } from '@/hooks/use-bank-accounts';
+import { AlertTriangle } from 'lucide-react';
 
 const balanceSchema = z.object({
   balanceDate: z.string().min(1, 'Date is required'),
@@ -59,9 +61,15 @@ export function BankBalanceForm({ open, onOpenChange }: BankBalanceFormProps) {
   const entities = useEntities() ?? [];
   const [form, setForm] = useState<FormData>(emptyForm);
   const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>>>({});
+  const bankAccounts = useBankAccountsForEntity(form.entity);
 
   function updateField<K extends keyof FormData>(key: K, value: FormData[K]) {
-    setForm((prev) => ({ ...prev, [key]: value }));
+    setForm((prev) => {
+      const next = { ...prev, [key]: value };
+      // Clear account selection when entity changes
+      if (key === 'entity') next.accountName = '';
+      return next;
+    });
     if (errors[key]) {
       setErrors((prev) => ({ ...prev, [key]: undefined }));
     }
@@ -148,15 +156,35 @@ export function BankBalanceForm({ open, onOpenChange }: BankBalanceFormProps) {
 
           {/* Bank Account */}
           <div className="space-y-1.5">
-            <Label htmlFor="accountName">Bank Account</Label>
-            <Input
-              id="accountName"
-              value={form.accountName}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateField('accountName', e.target.value)}
-              placeholder="e.g. BDO Savings, RCBC Checking"
-              className={errors.accountName ? 'border-red-300' : ''}
-            />
+            <Label>Bank Account</Label>
+            {form.entity && bankAccounts.length === 0 ? (
+              <div className="flex items-center gap-2 rounded-xl border-l-4 border-[#FF9500] bg-[#FF9500]/5 px-3 py-2">
+                <AlertTriangle className="h-4 w-4 text-[#FF9500] flex-shrink-0" />
+                <p className="text-xs text-[#1D1D1F]">
+                  No bank accounts for {form.entity}. Add one in <span className="font-medium">Settings &gt; Bank Accounts</span> first.
+                </p>
+              </div>
+            ) : (
+              <Select
+                value={form.accountName}
+                onValueChange={(v: string | null) => v && updateField('accountName', v)}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select bank account" />
+                </SelectTrigger>
+                <SelectContent>
+                  {bankAccounts.map((name) => (
+                    <SelectItem key={name} value={name}>
+                      {name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
             {errors.accountName && <p className="text-xs text-red-500">{errors.accountName}</p>}
+            <p className="text-[10px] text-slate-400">
+              Manage accounts in Settings &gt; Bank Accounts
+            </p>
           </div>
 
           {/* Balance */}

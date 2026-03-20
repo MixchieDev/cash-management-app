@@ -27,6 +27,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { toast } from 'sonner';
+import { Download } from 'lucide-react';
+import { downloadTemplate } from '@/lib/import-templates';
 
 export default function SettingsPage() {
   const settings = useSettings() ?? [];
@@ -359,15 +361,29 @@ export default function SettingsPage() {
 
         <TabsContent value="import">
           <div className="space-y-6">
-            {['Customer Contracts', 'Vendor Contracts', 'Bank Balances'].map((type) => (
-              <Card key={type} className="border-0 shadow-sm">
-                <CardHeader>
-                  <CardTitle className="text-base">{type} CSV Import</CardTitle>
+            {([
+              { label: 'Customer Contracts', key: 'customers' as const },
+              { label: 'Vendor Contracts', key: 'vendors' as const },
+              { label: 'Bank Balances', key: 'balances' as const },
+            ]).map((type) => (
+              <Card key={type.key} className="border-0 shadow-sm">
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <CardTitle className="text-base">{type.label} CSV Import</CardTitle>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1.5 text-xs"
+                    onClick={() => downloadTemplate(type.key)}
+                  >
+                    <Download className="h-3 w-3" />
+                    Download Template
+                  </Button>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <Input type="file" accept=".csv" />
                   <p className="text-xs text-[#86868B]">
-                    Upload a CSV file with the appropriate columns for {type.toLowerCase()}.
+                    Upload a CSV file with the appropriate columns for {type.label.toLowerCase()}.
+                    Download the template above for the expected format.
                   </p>
                   <Button className="bg-[#007AFF]" disabled>Import</Button>
                 </CardContent>

@@ -8,9 +8,7 @@ import { CustomerTable } from '@/components/contracts/customer-table';
 import { VendorTable } from '@/components/contracts/vendor-table';
 import { BankBalanceTable } from '@/components/contracts/bank-balance-table';
 import { OverrideManager } from '@/components/contracts/override-manager';
-import { Button } from '@/components/ui/button';
-import { Users, Building2, Landmark, CalendarClock, Download } from 'lucide-react';
-import { downloadTemplate, downloadAllTemplates, TEMPLATE_TYPES } from '@/lib/import-templates';
+import { Users, Building2, Landmark, CalendarClock } from 'lucide-react';
 
 export default function ContractsPage() {
   const { allAccountsSelected, selectedAccounts } = useAppStore();
@@ -32,22 +30,7 @@ export default function ContractsPage() {
       <PageHeader
         title="Contracts"
         subtitle="Manage customer and vendor contracts, bank balances, and payment overrides"
-      >
-        <div className="flex items-center gap-1">
-          {TEMPLATE_TYPES.map((t) => (
-            <Button
-              key={t.value}
-              variant="ghost"
-              size="sm"
-              className="text-xs gap-1 text-slate-500 hover:text-slate-900"
-              onClick={() => downloadTemplate(t.value)}
-            >
-              <Download className="h-3 w-3" />
-              {t.label}
-            </Button>
-          ))}
-        </div>
-      </PageHeader>
+      />
 
       <Tabs defaultValue="customers">
         <TabsList className="bg-[#F5F5F7] border border-[#E5E5E7]">

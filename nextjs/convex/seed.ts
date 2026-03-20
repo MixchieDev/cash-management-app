@@ -1,4 +1,4 @@
-import { mutation } from "./_generated/server";
+import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 
 /**
@@ -181,6 +181,68 @@ export const seedAll = mutation({
     }
     counts.scenarios = args.scenarios.length;
 
+    return counts;
+  },
+});
+
+/**
+ * Delete all data from all tables. Preserves nothing.
+ * Only callable by admin users from the dashboard.
+ */
+export const deleteAll = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const tables = [
+      "entities",
+      "customerContracts",
+      "vendorContracts",
+      "bankBalances",
+      "scenarios",
+      "scenarioChanges",
+      "paymentOverrides",
+      "users",
+      "appSettings",
+      "settingsAuditLog",
+    ] as const;
+
+    const counts: Record<string, number> = {};
+
+    for (const table of tables) {
+      const docs = await ctx.db.query(table).collect();
+      for (const doc of docs) {
+        await ctx.db.delete(doc._id);
+      }
+      counts[table] = docs.length;
+    }
+
+    return counts;
+  },
+});
+
+/**
+ * Get row counts for all tables.
+ */
+export const getCounts = query({
+  args: {},
+  handler: async (ctx) => {
+    const tables = [
+      "entities",
+      "customerContracts",
+      "vendorContracts",
+      "bankBalances",
+      "scenarios",
+      "scenarioChanges",
+      "paymentOverrides",
+      "users",
+      "appSettings",
+      "settingsAuditLog",
+    ] as const;
+
+    const counts: Record<string, number> = {};
+    for (const table of tables) {
+      const docs = await ctx.db.query(table).collect();
+      counts[table] = docs.length;
+    }
     return counts;
   },
 });

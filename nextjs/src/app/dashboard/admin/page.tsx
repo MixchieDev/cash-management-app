@@ -44,7 +44,10 @@ import {
   useResetPassword,
   useUpdatePermissions,
 } from '@/hooks/use-settings';
+import { useQuery as useConvexQuery, useMutation as useConvexMutation } from 'convex/react';
+import { api } from '../../../../convex/_generated/api';
 import { toast } from 'sonner';
+import { AlertTriangle } from 'lucide-react';
 
 interface UserRecord {
   _id: string;
@@ -83,6 +86,13 @@ export default function AdminPage() {
 
   // Password form
   const [resetPw, setResetPw] = useState('');
+
+  // Delete all data
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [isDeleting, setIsDeleting] = useState(false);
+  const tableCounts = useConvexQuery(api.seed.getCounts);
+  const deleteAllMutation = useConvexMutation(api.seed.deleteAll);
 
   const selectedUser = (users as UserRecord[]).find((u) => u._id === selectedUserId);
 
@@ -369,6 +379,97 @@ export default function AdminPage() {
             <Button onClick={handleUpdate} className="w-full bg-[#007AFF]"
               disabled={updateUser.isPending}>
               {updateUser.isPending ? 'Saving...' : 'Save Changes'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Danger Zone */}
+      <Card className="border border-red-200 shadow-sm">
+        <CardHeader>
+          <CardTitle className="text-base text-red-600 flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4" />
+            Danger Zone
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-slate-900">Delete All Data</p>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Permanently delete all contracts, balances, scenarios, overrides, users, and settings.
+                {tableCounts && (
+                  <span className="ml-1">
+                    ({(Object.values(tableCounts) as number[]).reduce((a, b) => a + b, 0)} total records)
+                  </span>
+                )}
+              </p>
+            </div>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => { setDeleteConfirmText(''); setShowDeleteDialog(true); }}
+            >
+              Delete All Data
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Delete All Confirmation Dialog */}
+      <Dialog open={showDeleteDialog} onOpenChange={(open: boolean) => setShowDeleteDialog(open)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="text-red-600 flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5" />
+              Delete All Data
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+              <p className="text-sm text-red-800 font-medium">This action cannot be undone.</p>
+              <p className="text-xs text-red-600 mt-1">
+                All data will be permanently deleted including contracts, bank balances, scenarios, users, and settings.
+              </p>
+            </div>
+            {tableCounts && (
+              <div className="text-xs text-slate-600 space-y-1">
+                {Object.entries(tableCounts).map(([table, count]) => (
+                  <div key={table} className="flex justify-between">
+                    <span className="capitalize">{table.replace(/([A-Z])/g, ' $1').trim()}</span>
+                    <span className="font-medium">{count as number}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div>
+              <Label>Type <span className="font-mono font-bold">DELETE</span> to confirm</Label>
+              <Input
+                value={deleteConfirmText}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setDeleteConfirmText(e.target.value)}
+                placeholder="DELETE"
+                className="mt-1"
+              />
+            </div>
+            <Button
+              variant="destructive"
+              className="w-full"
+              disabled={deleteConfirmText !== 'DELETE' || isDeleting}
+              onClick={async () => {
+                setIsDeleting(true);
+                try {
+                  const counts = await deleteAllMutation();
+                  const total = (Object.values(counts) as number[]).reduce((a, b) => a + b, 0);
+                  toast.success(`Deleted ${total} records`);
+                  setShowDeleteDialog(false);
+                } catch {
+                  toast.error('Failed to delete data');
+                } finally {
+                  setIsDeleting(false);
+                }
+              }}
+            >
+              {isDeleting ? 'Deleting...' : 'Permanently Delete All Data'}
             </Button>
           </div>
         </DialogContent>

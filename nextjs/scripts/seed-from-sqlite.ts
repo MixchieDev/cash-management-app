@@ -82,6 +82,7 @@ async function seed() {
   const bankBalances = readTable("bank_balances").map((b: any) => ({
     balanceDate: b.balance_date,
     entity: b.entity,
+    accountName: b.account_name || "Main Account",
     balance: parseFloat(b.balance) || 0,
     source: b.source || "sqlite_import",
     ...(b.notes ? { notes: b.notes } : {}),
@@ -180,13 +181,8 @@ async function seed() {
     const result = await convex.mutation(api.seed.seedAll as any, seedData);
     console.log("✅ Seed complete!", result);
   } catch (error: any) {
-    if (error.message?.includes("too large")) {
-      console.log("⚠️  Data too large for single mutation. Seeding in batches...\n");
-      await seedInBatches(seedData);
-    } else {
-      console.error("❌ Seed failed:", error.message);
-      console.log("\n💡 You can manually import seed-data.json via the Convex dashboard.");
-    }
+    console.log(`⚠️  Bulk seed failed: ${error.message}\n   Falling back to batch mode...\n`);
+    await seedInBatches(seedData);
   }
 
   sqlite.close();

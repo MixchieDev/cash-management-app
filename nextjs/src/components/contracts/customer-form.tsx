@@ -27,6 +27,7 @@ import {
 } from '@/components/ui/select';
 import type { CustomerContract } from '@/lib/types';
 import { BankAccountSelect } from './bank-account-select';
+import { useEntities } from '@/hooks/use-entities';
 
 const customerSchema = z.object({
   companyName: z.string().min(1, 'Company name is required'),
@@ -74,6 +75,7 @@ const emptyForm: FormData = {
 export function CustomerForm({ open, onOpenChange, customer }: CustomerFormProps) {
   const createMutation = useCreateCustomer();
   const updateMutation = useUpdateCustomer();
+  const entities = useEntities() ?? [];
   const isEditing = !!customer;
 
   const [form, setForm] = useState<FormData>(emptyForm);
@@ -96,10 +98,13 @@ export function CustomerForm({ open, onOpenChange, customer }: CustomerFormProps
         bankAccount: (customer as any).bankAccount ?? 'Main Account',
       });
     } else {
-      setForm(emptyForm);
+      setForm({
+        ...emptyForm,
+        entity: entities.length > 0 ? entities[0].shortCode : '',
+      });
     }
     setErrors({});
-  }, [customer, open]);
+  }, [customer, open, entities]);
 
   function updateField<K extends keyof FormData>(key: K, value: FormData[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -244,24 +249,20 @@ export function CustomerForm({ open, onOpenChange, customer }: CustomerFormProps
               <Label>Entity</Label>
               <Select
                 value={form.entity}
-                onValueChange={(v: string | null) => v && updateField('entity', v as 'YAHSHUA' | 'ABBA')}
+                onValueChange={(v: string | null) => v && updateField('entity', v)}
               >
                 <SelectTrigger className="w-full">
-                  <SelectValue />
+                  <SelectValue placeholder="Select entity" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="YAHSHUA">
-                    <span className="flex items-center gap-2">
-                      <span className="h-2 w-2 rounded-full bg-[#007AFF]" />
-                      YAHSHUA
-                    </span>
-                  </SelectItem>
-                  <SelectItem value="ABBA">
-                    <span className="flex items-center gap-2">
-                      <span className="h-2 w-2 rounded-full bg-[#AF52DE]" />
-                      ABBA
-                    </span>
-                  </SelectItem>
+                  {entities.map((ent: any) => (
+                    <SelectItem key={ent.shortCode} value={ent.shortCode}>
+                      <span className="flex items-center gap-2">
+                        <span className="h-2 w-2 rounded-full" style={{ backgroundColor: ent.color ?? '#64748b' }} />
+                        {ent.shortCode}
+                      </span>
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

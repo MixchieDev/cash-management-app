@@ -17,8 +17,10 @@ import {
 import { VendorForm } from './vendor-form';
 import { toast } from 'sonner';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Search, Plus, Pencil, XCircle, Trash2 } from 'lucide-react';
+import { Search, Plus, Pencil, XCircle, Trash2, AlertTriangle } from 'lucide-react';
 import type { VendorContract, EntityOrConsolidated } from '@/lib/types';
+import { useEntities, useAccountBalances } from '@/hooks/use-entities';
+import Link from 'next/link';
 
 interface VendorTableProps {
   entity: string;
@@ -100,6 +102,8 @@ export function VendorTable({ entity, accountFilter = [] }: VendorTableProps) {
   const vendors = useVendors(entity);
   const deactivate = useDeactivateVendor();
   const deleteVendor = useDeleteVendor();
+  const entities = useEntities() ?? [];
+  const accountBalances = useAccountBalances() ?? [];
   const [search, setSearch] = useState('');
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [formOpen, setFormOpen] = useState(false);
@@ -206,8 +210,36 @@ export function VendorTable({ entity, accountFilter = [] }: VendorTableProps) {
     );
   }
 
+  const needsSetup = entities.length === 0 || accountBalances.length === 0;
+
   return (
     <div className="space-y-4">
+      {needsSetup && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 flex items-start gap-3">
+          <AlertTriangle className="h-5 w-5 text-amber-500 flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-medium text-amber-800">Setup required before adding contracts</p>
+            <ul className="text-xs text-amber-700 mt-1 space-y-0.5">
+              {entities.length === 0 && (
+                <li>
+                  <Link href="/dashboard/settings" className="underline hover:text-amber-900">
+                    Create entities
+                  </Link>{' '}
+                  in Settings &gt; Entities (e.g. YAHSHUA, ABBA)
+                </li>
+              )}
+              {accountBalances.length === 0 && (
+                <li>
+                  Add at least one{' '}
+                  <span className="font-medium">bank balance</span>{' '}
+                  in the Bank Balances tab to set your starting cash position
+                </li>
+              )}
+            </ul>
+          </div>
+        </div>
+      )}
+
       {/* Toolbar */}
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-3 flex-1">
@@ -252,7 +284,7 @@ export function VendorTable({ entity, accountFilter = [] }: VendorTableProps) {
             </div>
           )}
         </div>
-        <Button onClick={handleAdd} className="bg-blue-600 text-white hover:bg-blue-700">
+        <Button onClick={handleAdd} className="bg-blue-600 text-white hover:bg-blue-700" disabled={needsSetup}>
           <Plus className="h-4 w-4 mr-1" />
           Add Vendor
         </Button>

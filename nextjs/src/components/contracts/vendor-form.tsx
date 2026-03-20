@@ -27,6 +27,7 @@ import {
 } from '@/components/ui/select';
 import type { VendorContract } from '@/lib/types';
 import { BankAccountSelect } from './bank-account-select';
+import { useEntities } from '@/hooks/use-entities';
 
 const vendorSchema = z.object({
   vendorName: z.string().min(1, 'Vendor name is required'),
@@ -86,6 +87,7 @@ const emptyForm: FormData = {
 export function VendorForm({ open, onOpenChange, vendor }: VendorFormProps) {
   const createMutation = useCreateVendor();
   const updateMutation = useUpdateVendor();
+  const entities = useEntities() ?? [];
   const isEditing = !!vendor;
 
   const [form, setForm] = useState<FormData>(emptyForm);
@@ -109,10 +111,13 @@ export function VendorForm({ open, onOpenChange, vendor }: VendorFormProps) {
         bankAccount: (vendor as any).bankAccount ?? 'Main Account',
       });
     } else {
-      setForm(emptyForm);
+      setForm({
+        ...emptyForm,
+        entity: entities.length > 0 ? entities[0].shortCode : '',
+      });
     }
     setErrors({});
-  }, [vendor, open]);
+  }, [vendor, open, entities]);
 
   function updateField<K extends keyof FormData>(key: K, value: FormData[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -285,24 +290,20 @@ export function VendorForm({ open, onOpenChange, vendor }: VendorFormProps) {
               <Label>Entity</Label>
               <Select
                 value={form.entity}
-                onValueChange={(v: string | null) => v && updateField('entity', v as 'YAHSHUA' | 'ABBA')}
+                onValueChange={(v: string | null) => v && updateField('entity', v)}
               >
                 <SelectTrigger className="w-full">
-                  <SelectValue />
+                  <SelectValue placeholder="Select entity" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="YAHSHUA">
-                    <span className="flex items-center gap-2">
-                      <span className="h-2 w-2 rounded-full bg-[#007AFF]" />
-                      YAHSHUA
-                    </span>
-                  </SelectItem>
-                  <SelectItem value="ABBA">
-                    <span className="flex items-center gap-2">
-                      <span className="h-2 w-2 rounded-full bg-[#AF52DE]" />
-                      ABBA
-                    </span>
-                  </SelectItem>
+                  {entities.map((ent: any) => (
+                    <SelectItem key={ent.shortCode} value={ent.shortCode}>
+                      <span className="flex items-center gap-2">
+                        <span className="h-2 w-2 rounded-full" style={{ backgroundColor: ent.color ?? '#64748b' }} />
+                        {ent.shortCode}
+                      </span>
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

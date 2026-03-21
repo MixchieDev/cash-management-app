@@ -113,7 +113,7 @@ export default function DashboardPage() {
       </PageHeader>
 
       {/* KPI Cards */}
-      <div className={`grid gap-4 ${canViewProjections ? 'grid-cols-2 md:grid-cols-3 lg:grid-cols-5' : 'grid-cols-1 md:grid-cols-2'}`}>
+      <div className={`grid gap-4 ${canViewProjections ? 'grid-cols-2 md:grid-cols-3 lg:grid-cols-5' : 'grid-cols-1 md:grid-cols-3'}`}>
         <KpiCard
           label={balanceDate ? `Cash as of ${format(new Date(balanceDate + 'T00:00:00Z'), 'MMM dd, yyyy')}` : 'Current Cash'}
           value={formatCurrency(currentCash)}
@@ -130,6 +130,13 @@ export default function DashboardPage() {
           changePositive={!dataPoints.some((dp: any) => parseFloat(dp.endingCash) < 0)}
           change={dataPoints.some((dp: any) => parseFloat(dp.endingCash) < 0) ? 'At risk' : 'No issues'}
         />
+        {!canViewProjections && (
+          <KpiCard
+            label={dataPoints.length > 0 ? `End of Preview (${dataPoints[dataPoints.length - 1]?.date})` : 'End of Preview'}
+            value={formatCurrency(dataPoints.length > 0 ? dataPoints[dataPoints.length - 1].endingCash : '0')}
+            icon={<Timer className="h-4 w-4" />}
+          />
+        )}
         {canViewProjections && (
           <>
             <KpiCard

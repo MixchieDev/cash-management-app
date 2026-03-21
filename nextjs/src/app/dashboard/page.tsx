@@ -58,9 +58,13 @@ export default function DashboardPage() {
   const userPermissions = (session?.user as { permissions?: string[] })?.permissions ?? [];
   const canViewProjections = userPermissions.includes('view_projections');
 
-  const { data: projection, isLoading, balanceDate } = useProjection(selectedEntity, timeframe, scenarioType);
+  // Restricted users always get daily timeframe (3-month preview)
+  const effectiveTimeframe = canViewProjections ? timeframe : 'daily';
+  const { data: projection, isLoading, balanceDate } = useProjection(selectedEntity, effectiveTimeframe, scenarioType);
 
-  const dataPoints = (projection?.dataPoints ?? []) as ProjectionDataPoint[];
+  // Slice to 90 days for restricted users
+  const rawDataPoints = (projection?.dataPoints ?? []) as ProjectionDataPoint[];
+  const dataPoints = canViewProjections ? rawDataPoints : rawDataPoints.slice(0, 90);
   const currentCash = dataPoints[0]?.startingCash ?? '0';
 
   const getProjectionAt = (index: number) =>
@@ -154,16 +158,20 @@ export default function DashboardPage() {
       {/* Alerts */}
       {dataPoints.length > 0 && <AlertsPanel data={dataPoints} />}
 
-      {/* Chart — projection permission required */}
-      {canViewProjections && (
-        <div className="rounded-xl bg-white border border-slate-100 shadow-sm">
-          <div className="px-6 pt-5 pb-3 flex items-center justify-between">
-            <div>
-              <h2 className="text-sm font-semibold text-slate-900">Cash Flow Projection</h2>
-              <p className="text-xs text-slate-400 mt-0.5">
-                Click any point for transaction details
-              </p>
-            </div>
+      {/* Chart — full controls for projection users, 3-month preview for restricted */}
+      <div className="rounded-xl bg-white border border-slate-100 shadow-sm">
+        <div className="px-6 pt-5 pb-3 flex items-center justify-between">
+          <div>
+            <h2 className="text-sm font-semibold text-slate-900">
+              {canViewProjections ? 'Cash Flow Projection' : '3-Month Cash Preview'}
+            </h2>
+            <p className="text-xs text-slate-400 mt-0.5">
+              {canViewProjections
+                ? 'Click any point for transaction details'
+                : 'Limited preview — contact admin for full projections'}
+            </p>
+          </div>
+          {canViewProjections && (
             <div className="flex items-center gap-2">
               <button
                 onClick={() => {
@@ -205,21 +213,21 @@ export default function DashboardPage() {
                 ))}
               </div>
             </div>
-          </div>
-          <div className="px-2 pb-4">
-            {isLoading ? (
-              <div className="h-[380px] flex items-center justify-center">
-                <Loader2 className="h-6 w-6 text-slate-300 animate-spin" />
-              </div>
-            ) : (
-              <CashFlowChart
-                data={dataPoints}
-                onPointClick={openTransactionModal}
-              />
-            )}
-          </div>
+          )}
         </div>
-      )}
+        <div className="px-2 pb-4">
+          {isLoading ? (
+            <div className="h-[380px] flex items-center justify-center">
+              <Loader2 className="h-6 w-6 text-slate-300 animate-spin" />
+            </div>
+          ) : (
+            <CashFlowChart
+              data={dataPoints}
+              onPointClick={canViewProjections ? openTransactionModal : undefined}
+            />
+          )}
+        </div>
+      </div>
 
       {/* Quick Actions — projection permission required */}
       {canViewProjections && (

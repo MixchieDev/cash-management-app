@@ -153,12 +153,23 @@ export function VendorForm({ open, onOpenChange, vendor }: VendorFormProps) {
       return;
     }
 
+    // Convert due day (e.g. "15") to ISO date anchored to current month
+    let dueDate = result.data.dueDate;
+    if (/^\d{1,2}$/.test(dueDate.trim())) {
+      const day = parseInt(dueDate.trim(), 10);
+      const now = new Date();
+      const y = now.getFullYear();
+      const m = String(now.getMonth() + 1).padStart(2, '0');
+      const d = String(Math.min(day, 28)).padStart(2, '0');
+      dueDate = `${y}-${m}-${d}`;
+    }
+
     const payload = {
       vendorName: result.data.vendorName,
       category: result.data.category,
       amount: parseFloat(result.data.amount),
       frequency: result.data.frequency,
-      dueDate: result.data.dueDate,
+      dueDate,
       startDate: result.data.startDate || undefined,
       endDate: result.data.endDate || undefined,
       entity: result.data.entity,
@@ -272,12 +283,12 @@ export function VendorForm({ open, onOpenChange, vendor }: VendorFormProps) {
               {errors.amount && <p className="text-xs text-[#FF3B30]">{errors.amount}</p>}
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="dueDate">Due Day</Label>
+              <Label htmlFor="dueDate">Due Date</Label>
               <Input
                 id="dueDate"
+                type="date"
                 value={form.dueDate}
                 onChange={(e) => updateField('dueDate', e.target.value)}
-                placeholder="e.g. 15 or 21"
                 aria-invalid={!!errors.dueDate}
               />
               {errors.dueDate && <p className="text-xs text-[#FF3B30]">{errors.dueDate}</p>}

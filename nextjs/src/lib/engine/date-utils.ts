@@ -21,10 +21,17 @@ export function utcDate(year: number, month: number, day: number): Date {
 
 /**
  * Parse an ISO date string to a UTC date.
- * Handles both "2026-03-15" and "2026-03-15T00:00:00.000Z".
+ * Handles "2026-03-15", "2026-03-15T00:00:00.000Z", and bare day numbers ("15").
+ * Bare day numbers are anchored to the current month (for legacy vendor dueDate values).
  */
 export function parseDate(dateStr: string): Date {
-  const [y, m, d] = dateStr.split('T')[0].split('-').map(Number);
+  const trimmed = dateStr.trim();
+  // Handle bare day number (e.g. "15" from old vendor dueDate entries)
+  if (/^\d{1,2}$/.test(trimmed)) {
+    const now = new Date();
+    return utcDate(now.getUTCFullYear(), now.getUTCMonth(), Math.min(parseInt(trimmed, 10), 28));
+  }
+  const [y, m, d] = trimmed.split('T')[0].split('-').map(Number);
   return utcDate(y, m - 1, d);
 }
 

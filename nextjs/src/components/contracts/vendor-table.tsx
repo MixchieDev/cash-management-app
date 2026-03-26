@@ -76,7 +76,9 @@ function calculateMonthlyEquivalentNum(amount: number, frequency: string): numbe
 }
 
 function formatDueDay(dueDate: string): string {
-  const day = parseInt(dueDate);
+  // Extract day from ISO date "YYYY-MM-DD" or bare day number "15"
+  const raw = dueDate.includes('-') ? dueDate.split('-').pop()! : dueDate;
+  const day = parseInt(raw, 10);
   if (!isNaN(day)) {
     const suffix =
       day === 1 || day === 21 || day === 31

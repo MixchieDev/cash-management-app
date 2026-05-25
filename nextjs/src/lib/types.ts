@@ -77,6 +77,9 @@ export interface CustomerContract {
   notes?: string;
   source: string;
   createdBy?: string;
+  bankAccount?: string;
+  customerNumber?: string;
+  externalId?: string;
 }
 
 export interface VendorContract {
@@ -96,6 +99,7 @@ export interface VendorContract {
   notes?: string;
   source: string;
   createdBy?: string;
+  bankAccount?: string;
 }
 
 export interface BankBalance {
@@ -103,6 +107,7 @@ export interface BankBalance {
   _creationTime: number;
   balanceDate: string;
   entity: EntityCode;
+  accountName?: string;
   balance: number;
   source: string;
   notes?: string;

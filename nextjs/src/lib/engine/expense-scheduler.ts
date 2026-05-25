@@ -6,6 +6,7 @@
  */
 import Decimal from 'decimal.js';
 import { addDays, addMonths, addYears } from 'date-fns';
+import { formatDateISO } from './date-utils';
 
 export interface ExpenseEventData {
   date: Date;
@@ -103,7 +104,7 @@ export class ExpenseScheduler {
 
     const overrideLookup = new Map<string, VendorPaymentOverrideData>();
     for (const override of paymentOverrides) {
-      const key = `${override.contractId}_${override.originalDate.toISOString().split('T')[0]}`;
+      const key = `${override.contractId}_${formatDateISO(override.originalDate)}`;
       overrideLookup.set(key, override);
     }
 
@@ -117,7 +118,7 @@ export class ExpenseScheduler {
       for (let paymentDate of paymentDates) {
         if (contract.startDate && paymentDate < contract.startDate) continue;
 
-        const overrideKey = `${contract.id}_${paymentDate.toISOString().split('T')[0]}`;
+        const overrideKey = `${contract.id}_${formatDateISO(paymentDate)}`;
         const override = overrideLookup.get(overrideKey);
 
         if (override) {

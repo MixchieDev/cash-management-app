@@ -8,7 +8,7 @@ import Decimal from 'decimal.js';
 import { addDays, addMonths } from 'date-fns';
 import { RevenueCalculator, type RevenueEventData, type CustomerContractData, type PaymentOverrideData } from './revenue-calculator';
 import { ExpenseScheduler, type ExpenseEventData, type VendorContractData, type VendorPaymentOverrideData } from './expense-scheduler';
-import { utcDate, getUTCParts, getDaysInUTCMonth } from './date-utils';
+import { utcDate, getUTCParts, getDaysInUTCMonth, formatDateISO } from './date-utils';
 
 export interface ProjectionDataPointData {
   date: Date;
@@ -124,14 +124,17 @@ export class CashProjector {
     // Collect unique event dates (only days with actual cash movement)
     const eventDateSet = new Set<string>();
     for (const e of revenueEvents) {
-      eventDateSet.add(e.date.toISOString().split('T')[0]);
+      eventDateSet.add(formatDateISO(e.date));
     }
     for (const e of expenseEvents) {
-      eventDateSet.add(e.date.toISOString().split('T')[0]);
+      eventDateSet.add(formatDateISO(e.date));
     }
     const eventDates = Array.from(eventDateSet)
       .sort()
-      .map((d) => new Date(d + 'T00:00:00.000Z'));
+      .map((d) => {
+        const [y, m, day] = d.split('-').map(Number);
+        return utcDate(y, m - 1, day);
+      });
 
     // Build data points only on dates with cash movement
     const dataPoints: ProjectionDataPointData[] = [];

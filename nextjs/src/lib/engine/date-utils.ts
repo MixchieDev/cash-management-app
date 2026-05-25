@@ -21,15 +21,25 @@ export function utcDate(year: number, month: number, day: number): Date {
 
 /**
  * Parse an ISO date string to a UTC date.
- * Handles "2026-03-15", "2026-03-15T00:00:00.000Z", and bare day numbers ("15").
- * Bare day numbers are anchored to the current month (for legacy vendor dueDate values).
+ * Accepts "2026-03-15" and "2026-03-15T00:00:00.000Z".
+ *
+ * Legacy fallback: bare day numbers ("15") are anchored to the current month.
+ * This is dirty data from old vendor imports and produces a different month
+ * every time the projection runs — it warns so callers can fix the source.
  */
 export function parseDate(dateStr: string): Date {
   const trimmed = dateStr.trim();
-  // Handle bare day number (e.g. "15" from old vendor dueDate entries)
   if (/^\d{1,2}$/.test(trimmed)) {
     const now = new Date();
-    return utcDate(now.getUTCFullYear(), now.getUTCMonth(), Math.min(parseInt(trimmed, 10), 28));
+    const day = Math.min(parseInt(trimmed, 10), 28);
+    if (typeof console !== 'undefined') {
+      console.warn(
+        `[date-utils] parseDate received a bare day number ("${trimmed}"). ` +
+        `Anchoring to current month is unreliable for projections — ` +
+        `update the source record to a full YYYY-MM-DD date.`
+      );
+    }
+    return utcDate(now.getUTCFullYear(), now.getUTCMonth(), day);
   }
   const [y, m, d] = trimmed.split('T')[0].split('-').map(Number);
   return utcDate(y, m - 1, d);

@@ -7,7 +7,7 @@
 import Decimal from 'decimal.js';
 import { addDays, addMonths } from 'date-fns';
 import { PAYMENT_PLAN_FREQUENCIES, DEFAULT_PAYMENT_TERMS } from '../constants';
-import { utcDate, getUTCParts, getDaysInUTCMonth } from './date-utils';
+import { utcDate, getUTCParts, getDaysInUTCMonth, formatDateISO } from './date-utils';
 
 export interface RevenueEventData {
   date: Date;
@@ -103,7 +103,7 @@ export class RevenueCalculator {
 
     const overrideLookup = new Map<string, PaymentOverrideData>();
     for (const override of paymentOverrides) {
-      const key = `${override.contractId}_${override.originalDate.toISOString().split('T')[0]}`;
+      const key = `${override.contractId}_${formatDateISO(override.originalDate)}`;
       overrideLookup.set(key, override);
     }
 
@@ -119,7 +119,7 @@ export class RevenueCalculator {
           contract.invoiceDay
         );
 
-        const overrideKey = `${contract.id}_${paymentDate.toISOString().split('T')[0]}`;
+        const overrideKey = `${contract.id}_${formatDateISO(paymentDate)}`;
         const override = overrideLookup.get(overrideKey);
 
         if (override) {

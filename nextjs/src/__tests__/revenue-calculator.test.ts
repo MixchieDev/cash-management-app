@@ -109,6 +109,96 @@ describe('RevenueCalculator', () => {
 
       expect(months).toHaveLength(3);
     });
+
+    // Regression: when the projection starts mid-cycle, the engine used to
+    // snap currentMonth to the projection-start month, which invented
+    // phantom billing months and skipped the real next-due payment.
+    // It must keep the contract's natural cadence — see Del Monte
+    // Philippines case (Quarterly, Mar start, projection from late May).
+    it('keeps the natural quarterly cadence when projection starts mid-cycle', () => {
+      const calc = new RevenueCalculator('optimistic');
+      const contract = makeContract({
+        paymentPlan: 'Quarterly',
+        contractStart: utcDate(2026, 2, 1), // Mar 1, 2026
+      });
+
+      // Projection window: May 25, 2026 → Dec 31, 2026 (matches a daily
+      // dashboard view ~7 months out from a late-May balance date).
+      const months = calc.getBillingMonths(
+        contract,
+        utcDate(2026, 4, 25),
+        utcDate(2026, 11, 31)
+      );
+
+      // Expect Jun/Sep/Dec — NOT May (which is off-cycle).
+      expect(months.map((d) => d.toISOString().slice(0, 10))).toEqual([
+        '2026-06-01',
+        '2026-09-01',
+        '2026-12-01',
+      ]);
+    });
+
+    it('keeps the natural annual cadence when projection starts mid-year', () => {
+      const calc = new RevenueCalculator('optimistic');
+      const contract = makeContract({
+        paymentPlan: 'Annual',
+        contractStart: utcDate(2025, 0, 5), // Jan 5, 2025
+      });
+
+      // Projection window: May 25, 2026 → May 25, 2027.
+      const months = calc.getBillingMonths(
+        contract,
+        utcDate(2026, 4, 25),
+        utcDate(2027, 4, 25)
+      );
+
+      // Real anniversary is January — not May.
+      expect(months.map((d) => d.toISOString().slice(0, 10))).toEqual([
+        '2027-01-01',
+      ]);
+    });
+
+    it('keeps the natural bi-annual cadence when projection starts off-cycle', () => {
+      const calc = new RevenueCalculator('optimistic');
+      const contract = makeContract({
+        paymentPlan: 'Bi-annually',
+        contractStart: utcDate(2025, 1, 1), // Feb 1, 2025
+      });
+
+      // Cycle is Feb/Aug. Projection from May 25, 2026.
+      const months = calc.getBillingMonths(
+        contract,
+        utcDate(2026, 4, 25),
+        utcDate(2027, 11, 31)
+      );
+
+      expect(months.map((d) => d.toISOString().slice(0, 10))).toEqual([
+        '2026-08-01',
+        '2027-02-01',
+        '2027-08-01',
+      ]);
+    });
+
+    it('starts at contractStart when projection begins before it', () => {
+      const calc = new RevenueCalculator('optimistic');
+      const contract = makeContract({
+        paymentPlan: 'Quarterly',
+        contractStart: utcDate(2026, 5, 1), // Jun 1, 2026 (future)
+      });
+
+      const months = calc.getBillingMonths(
+        contract,
+        utcDate(2026, 0, 1),
+        utcDate(2026, 11, 31)
+      );
+
+      // Don't bill before the contract starts.
+      expect(months.map((d) => d.toISOString().slice(0, 10))).toEqual([
+        '2026-06-01',
+        '2026-09-01',
+        '2026-12-01',
+      ]);
+    });
   });
 
   describe('calculateRevenueEvents', () => {

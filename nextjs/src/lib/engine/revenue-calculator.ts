@@ -72,7 +72,13 @@ export class RevenueCalculator {
 
     let currentMonth = utcDate(cs.year, cs.month, 1);
     const projStart = utcDate(ss.year, ss.month, 1);
-    if (projStart > currentMonth) currentMonth = projStart;
+    // Fast-forward in full payment cycles so we stay on the contract's
+    // natural billing cadence. Snapping `currentMonth` directly to `projStart`
+    // would invent phantom billing months (e.g. May for a Mar/Jun/Sep/Dec
+    // quarterly contract) and skip the real next-due payment.
+    while (currentMonth < projStart) {
+      currentMonth = addMonths(currentMonth, frequencyMonths);
+    }
 
     const ee = getUTCParts(endDate);
     let endMonth: Date;

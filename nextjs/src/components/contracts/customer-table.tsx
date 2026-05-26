@@ -246,7 +246,7 @@ export function CustomerTable({ entity, accountFilter = [] }: CustomerTableProps
                 />
               </TableHead>
               <TableHead className="text-slate-500 text-xs uppercase tracking-wider font-semibold">Company Name</TableHead>
-              <TableHead className="text-[#86868B] text-xs uppercase tracking-wider font-semibold text-right">Monthly Fee</TableHead>
+              <TableHead className="text-[#86868B] text-xs uppercase tracking-wider font-semibold text-right">Monthly Rate</TableHead>
               <TableHead className="text-[#86868B] text-xs uppercase tracking-wider font-semibold">Plan</TableHead>
               <TableHead className="text-[#86868B] text-xs uppercase tracking-wider font-semibold text-right">Payment Amt</TableHead>
               <TableHead className="text-[#86868B] text-xs uppercase tracking-wider font-semibold">Entity</TableHead>

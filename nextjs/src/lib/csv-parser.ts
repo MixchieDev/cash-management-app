@@ -83,7 +83,10 @@ function parseCSVLine(line: string): string[] {
 // ═══════════════════════════════════════════════════════════════
 
 export function mapCustomerRow(row: Record<string, string>) {
-  const monthlyFee = parseFloat(row['Monthly Fee']);
+  // Accept both the new "Monthly Rate" header and the legacy "Monthly Fee"
+  // so CSVs downloaded before the rename still import.
+  const rawRate = row['Monthly Rate'] ?? row['Monthly Fee'];
+  const monthlyFee = parseFloat(rawRate);
   if (!row['Company Name'] || isNaN(monthlyFee)) return null;
 
   return {

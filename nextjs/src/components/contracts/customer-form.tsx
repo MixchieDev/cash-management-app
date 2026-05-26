@@ -184,10 +184,10 @@ export function CustomerForm({ open, onOpenChange, customer }: CustomerFormProps
             {errors.companyName && <p className="text-xs text-[#FF3B30]">{errors.companyName}</p>}
           </div>
 
-          {/* Monthly Fee + Payment Plan */}
+          {/* Monthly Rate + Payment Plan */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label htmlFor="monthlyFee">Monthly Fee</Label>
+              <Label htmlFor="monthlyFee">Monthly Rate</Label>
               <div className="relative">
                 <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#86868B] text-sm">₱</span>
                 <Input
@@ -202,6 +202,11 @@ export function CustomerForm({ open, onOpenChange, customer }: CustomerFormProps
                   aria-invalid={!!errors.monthlyFee}
                 />
               </div>
+              <p className="text-xs text-[#86868B]">
+                Per-month equivalent. For Quarterly/Annual customers, enter
+                what they pay <em>per month</em>, not per cycle. The system
+                multiplies by the cycle length automatically.
+              </p>
               {errors.monthlyFee && <p className="text-xs text-[#FF3B30]">{errors.monthlyFee}</p>}
             </div>
             <div className="space-y-1.5">

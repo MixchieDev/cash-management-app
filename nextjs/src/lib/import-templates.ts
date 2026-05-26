@@ -4,7 +4,7 @@ const TEMPLATES: Record<string, { headers: string[]; sampleRows: string[][]; not
   customers: {
     headers: [
       'Company Name',
-      'Monthly Fee',
+      'Monthly Rate',
       'Payment Plan',
       'Contract Start',
       'Contract End',
@@ -51,7 +51,7 @@ const TEMPLATES: Record<string, { headers: string[]; sampleRows: string[][]; not
     ],
     notes: [
       'NOTES:',
-      '"Monthly Fee: Amount in PHP (no currency symbol, no commas)"',
+      '"Monthly Rate: Per-month equivalent in PHP (no currency symbol, no commas). For Quarterly/Annual customers, enter what they pay per month — the system multiplies by cycle length."',
       '"Payment Plan: Monthly | Quarterly | Annual | Bi-annually | More than 1 year"',
       '"Dates: YYYY-MM-DD format. Contract End can be blank for ongoing contracts."',
       '"Status: Active | Inactive | Pending | Cancelled"',

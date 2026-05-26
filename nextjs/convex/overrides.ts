@@ -1,6 +1,5 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
-import type { Id } from "./_generated/dataModel";
 import { validateOverrideInput } from "./overrideValidation";
 
 export const list = query({
@@ -43,11 +42,19 @@ export const create = mutation({
       throw new Error(validation.error);
     }
 
-    // 2. Foreign-key check: the referenced contract must exist
-    //    and live in the table that matches overrideType.
+    // 2. Foreign-key check: the contract must exist AND live in the table
+    //    that matches overrideType. Convex IDs are not table-scoped at runtime,
+    //    so `db.get` would happily return a customer doc for a vendor override;
+    //    `normalizeId` checks the table prefix on the ID itself.
     const tableName =
       args.overrideType === "customer" ? "customerContracts" : "vendorContracts";
-    const contract = await ctx.db.get(args.contractId as Id<typeof tableName>);
+    const normalizedId = ctx.db.normalizeId(tableName, args.contractId);
+    if (!normalizedId) {
+      throw new Error(
+        `${args.overrideType === "customer" ? "Customer" : "Vendor"} contract not found for the selected override`
+      );
+    }
+    const contract = await ctx.db.get(normalizedId);
     if (!contract) {
       throw new Error(
         `${args.overrideType === "customer" ? "Customer" : "Vendor"} contract not found for the selected override`

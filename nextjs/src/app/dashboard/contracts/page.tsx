@@ -8,8 +8,7 @@ import { CustomerTable } from '@/components/contracts/customer-table';
 import { VendorTable } from '@/components/contracts/vendor-table';
 import { BankBalanceTable } from '@/components/contracts/bank-balance-table';
 import { OverrideManager } from '@/components/contracts/override-manager';
-import { AdjustmentManager } from '@/components/contracts/adjustment-manager';
-import { Users, Building2, Landmark, CalendarClock, Sparkles } from 'lucide-react';
+import { Users, Building2, Landmark, CalendarClock } from 'lucide-react';
 
 export default function ContractsPage() {
   const { allAccountsSelected, selectedAccounts } = useAppStore();
@@ -51,10 +50,6 @@ export default function ContractsPage() {
             <CalendarClock className="h-3.5 w-3.5" />
             Payment Overrides
           </TabsTrigger>
-          <TabsTrigger value="adjustments" className="gap-1.5">
-            <Sparkles className="h-3.5 w-3.5" />
-            Adjustments
-          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="customers" className="mt-4">
@@ -85,14 +80,6 @@ export default function ContractsPage() {
           <Card className="border-0 shadow-sm bg-transparent">
             <CardContent className="p-0">
               <OverrideManager entity={selectedEntity} />
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="adjustments" className="mt-4">
-          <Card className="border-0 shadow-sm bg-transparent">
-            <CardContent className="p-0">
-              <AdjustmentManager entity={selectedEntity} />
             </CardContent>
           </Card>
         </TabsContent>

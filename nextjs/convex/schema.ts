@@ -131,27 +131,6 @@ export default defineSchema({
     .index("by_entity", ["entity"]),
 
   // ═══════════════════════════════════════════════════════════════
-  // Ad-hoc Projection Events
-  //   One-off inflows/outflows that aren't tied to a recurring contract.
-  //   Use for things like a tax refund, owner injection, lawyer fee, etc.
-  // ═══════════════════════════════════════════════════════════════
-  adhocEvents: defineTable({
-    eventType: v.string(), // inflow | outflow
-    date: v.string(),      // ISO YYYY-MM-DD
-    amount: v.number(),    // positive number; eventType decides direction
-    description: v.string(),
-    category: v.optional(v.string()), // e.g. Loans / Operations / Tax — outflow only
-    entity: v.string(),
-    bankAccount: v.optional(v.string()),
-    confidence: v.optional(v.string()), // committed | likely | possible
-    notes: v.optional(v.string()),
-    createdBy: v.optional(v.string()),
-  })
-    .index("by_entity", ["entity"])
-    .index("by_date", ["date"])
-    .index("by_entity_date", ["entity", "date"]),
-
-  // ═══════════════════════════════════════════════════════════════
   // Users
   // ═══════════════════════════════════════════════════════════════
   users: defineTable({

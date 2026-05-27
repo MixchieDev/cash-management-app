@@ -205,4 +205,100 @@ describe('CashProjector', () => {
       expect(janEvents.expenseEvents.length).toBeGreaterThanOrEqual(0);
     });
   });
+
+  describe('adhocEvents', () => {
+    it('adds an ad-hoc inflow to revenue events and net cash', () => {
+      const projector = new CashProjector();
+      const result = projector.calculateProjectionDetailed({
+        startDate: utcDate(2026, 0, 1),
+        endDate: utcDate(2026, 2, 31),
+        entity: 'YAHSHUA',
+        timeframe: 'monthly',
+        scenarioType: 'optimistic',
+        startingCash: new Decimal('1000000'),
+        customerContracts: [],
+        vendorContracts: [],
+        adhocEvents: [
+          {
+            id: 'a1',
+            eventType: 'inflow',
+            date: utcDate(2026, 1, 15),
+            amount: new Decimal('500000'),
+            description: 'BIR refund',
+            entity: 'YAHSHUA',
+          },
+        ],
+      });
+
+      const adhoc = result.revenueEvents.find((e) => e.companyName === 'BIR refund');
+      expect(adhoc).toBeDefined();
+      expect(adhoc!.amount.toFixed(2)).toBe('500000.00');
+      expect(adhoc!.eventType).toBe('adhoc');
+
+      const final = result.dataPoints[result.dataPoints.length - 1].endingCash;
+      expect(final.toFixed(2)).toBe('1500000.00');
+    });
+
+    it('adds an ad-hoc outflow to expense events and reduces net cash', () => {
+      const projector = new CashProjector();
+      const result = projector.calculateProjectionDetailed({
+        startDate: utcDate(2026, 0, 1),
+        endDate: utcDate(2026, 2, 31),
+        entity: 'YAHSHUA',
+        timeframe: 'monthly',
+        scenarioType: 'optimistic',
+        startingCash: new Decimal('1000000'),
+        customerContracts: [],
+        vendorContracts: [],
+        adhocEvents: [
+          {
+            id: 'a2',
+            eventType: 'outflow',
+            date: utcDate(2026, 1, 10),
+            amount: new Decimal('200000'),
+            description: 'Lawyer fee',
+            category: 'Operations',
+            entity: 'YAHSHUA',
+          },
+        ],
+      });
+
+      const adhoc = result.expenseEvents.find((e) => e.vendorName === 'Lawyer fee');
+      expect(adhoc).toBeDefined();
+      expect(adhoc!.amount.toFixed(2)).toBe('200000.00');
+      expect(adhoc!.category).toBe('Operations');
+
+      const final = result.dataPoints[result.dataPoints.length - 1].endingCash;
+      expect(final.toFixed(2)).toBe('800000.00');
+    });
+
+    it('excludes ad-hoc events outside the projection window', () => {
+      const projector = new CashProjector();
+      const result = projector.calculateProjectionDetailed({
+        startDate: utcDate(2026, 0, 1),
+        endDate: utcDate(2026, 2, 31),
+        entity: 'YAHSHUA',
+        timeframe: 'monthly',
+        scenarioType: 'optimistic',
+        startingCash: new Decimal('1000000'),
+        customerContracts: [],
+        vendorContracts: [],
+        adhocEvents: [
+          {
+            id: 'a3',
+            eventType: 'inflow',
+            date: utcDate(2026, 6, 1), // July — outside Jan-Mar window
+            amount: new Decimal('5000000'),
+            description: 'Way later refund',
+            entity: 'YAHSHUA',
+          },
+        ],
+      });
+
+      // The out-of-window event must not appear in revenue events.
+      expect(result.revenueEvents.find((e) => e.companyName === 'Way later refund')).toBeUndefined();
+      // With nothing else in the window, no data points are generated.
+      expect(result.dataPoints).toHaveLength(0);
+    });
+  });
 });

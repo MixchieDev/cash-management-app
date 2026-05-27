@@ -7,7 +7,7 @@ import type { Doc } from '../../convex/_generated/dataModel';
 import type { FunctionReturnType } from 'convex/server';
 import Decimal from 'decimal.js';
 import { addDays } from 'date-fns';
-import { CashProjector } from '@/lib/engine/cash-projector';
+import { CashProjector, type AdhocEventData } from '@/lib/engine/cash-projector';
 import type {
   CustomerContractData,
   PaymentOverrideData,
@@ -35,6 +35,7 @@ type ProjectionEntity = ProjectionResponse['entities'][number];
 type CustomerDoc = Doc<'customerContracts'>;
 type VendorDoc = Doc<'vendorContracts'>;
 type OverrideDoc = Doc<'paymentOverrides'>;
+type AdhocDoc = Doc<'adhocEvents'>;
 
 type AccountSelection = { entity: string; accountName: string };
 
@@ -51,6 +52,7 @@ function reshapeEntityForEngine(
   vendors: VendorContractData[];
   customerOverrides: PaymentOverrideData[];
   vendorOverrides: VendorPaymentOverrideData[];
+  adhocEvents: AdhocEventData[];
 } {
   const filterByAccount = <T extends { bankAccount?: string }>(items: T[]): T[] => {
     if (!selectedAccountNames || selectedAccountNames.length === 0) return items;
@@ -99,11 +101,26 @@ function reshapeEntityForEngine(
     action: o.action,
   });
 
+  const adhocEvents: AdhocEventData[] = filterByAccount(
+    (entityData.adhocEvents ?? []) as AdhocDoc[]
+  ).map((a) => ({
+    id: a._id,
+    eventType: (a.eventType === 'inflow' ? 'inflow' : 'outflow') as 'inflow' | 'outflow',
+    date: parseDate(a.date),
+    amount: new Decimal(a.amount),
+    description: a.description,
+    category: a.category,
+    entity: a.entity,
+    bankAccount: a.bankAccount,
+    confidence: a.confidence,
+  }));
+
   return {
     customers,
     vendors,
     customerOverrides: (entityData.customerOverrides as OverrideDoc[]).map(reshapeOverride),
     vendorOverrides: (entityData.vendorOverrides as OverrideDoc[]).map(reshapeOverride),
+    adhocEvents,
   };
 }
 
@@ -182,6 +199,7 @@ export function useProjection(
         vendorContracts: reshaped.vendors,
         customerOverrides: reshaped.customerOverrides,
         vendorOverrides: reshaped.vendorOverrides,
+        adhocEvents: reshaped.adhocEvents,
       });
       return serializeProjectionResult(result, ent.entity);
     }
@@ -193,6 +211,7 @@ export function useProjection(
       vendors: [] as VendorContractData[],
       customerOverrides: [] as PaymentOverrideData[],
       vendorOverrides: [] as VendorPaymentOverrideData[],
+      adhocEvents: [] as AdhocEventData[],
     };
     let totalStartingCash = new Decimal(0);
 
@@ -207,6 +226,7 @@ export function useProjection(
       merged.vendors.push(...reshaped.vendors);
       merged.customerOverrides.push(...reshaped.customerOverrides);
       merged.vendorOverrides.push(...reshaped.vendorOverrides);
+      merged.adhocEvents.push(...reshaped.adhocEvents);
       totalStartingCash = totalStartingCash.add(ent.startingCash);
     }
 
@@ -223,6 +243,7 @@ export function useProjection(
       vendorContracts: merged.vendors,
       customerOverrides: merged.customerOverrides,
       vendorOverrides: merged.vendorOverrides,
+      adhocEvents: merged.adhocEvents,
     });
     return serializeProjectionResult(result, 'Consolidated');
   }, [data, timeframe, scenarioType, allAccountsSelected, selectedAccounts, realisticDelayDays]);

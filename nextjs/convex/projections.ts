@@ -147,6 +147,12 @@ async function getEntityData(
     .collect();
   const vendorOverrides = allVendorOverrides.filter((o: any) => o.entity === entity);
 
+  // Ad-hoc projection events for this entity
+  const adhocEvents = await ctx.db
+    .query("adhocEvents")
+    .withIndex("by_entity", (q: any) => q.eq("entity", entity))
+    .collect();
+
   return {
     entity,
     startingCash,
@@ -159,5 +165,6 @@ async function getEntityData(
     vendors,
     customerOverrides,
     vendorOverrides,
+    adhocEvents,
   };
 }

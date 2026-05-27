@@ -86,3 +86,23 @@ export function useCreateOverride() {
 export function useDeleteOverride() {
   return useConvexMutation(api.overrides.remove);
 }
+
+// ═══════════════════════════════════════════════════════════════
+// Ad-hoc Projection Events
+// ═══════════════════════════════════════════════════════════════
+export function useAdhocEvents(entity?: string): any[] | undefined {
+  const entityArg = entity && entity !== 'Consolidated' ? entity : undefined;
+  return useQuery(api.adhocEvents.list, { entity: entityArg }) as any;
+}
+
+export function useCreateAdhocEvent() {
+  return useConvexMutation(api.adhocEvents.create);
+}
+
+export function useUpdateAdhocEvent() {
+  return useConvexMutation(api.adhocEvents.update);
+}
+
+export function useDeleteAdhocEvent() {
+  return useConvexMutation(api.adhocEvents.remove);
+}

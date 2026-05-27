@@ -28,6 +28,18 @@ export interface ProjectionResultData {
   expenseEvents: ExpenseEventData[];
 }
 
+export interface AdhocEventData {
+  id: string;
+  eventType: 'inflow' | 'outflow';
+  date: Date;
+  amount: Decimal;
+  description: string;
+  category?: string;
+  entity: string;
+  bankAccount?: string;
+  confidence?: string;
+}
+
 export interface ProjectionInput {
   startDate: Date;
   endDate: Date;
@@ -39,6 +51,8 @@ export interface ProjectionInput {
   vendorContracts: VendorContractData[];
   customerOverrides?: PaymentOverrideData[];
   vendorOverrides?: VendorPaymentOverrideData[];
+  /** One-off inflows/outflows not tied to a contract. */
+  adhocEvents?: AdhocEventData[];
   realisticDelayDays?: number;
   /** Events before this date are excluded (assumed already in bank balance). Defaults to startDate. */
   projectionAsOfDate?: Date;
@@ -101,6 +115,7 @@ export class CashProjector {
       vendorContracts,
       customerOverrides = [],
       vendorOverrides = [],
+      adhocEvents = [],
       realisticDelayDays,
       projectionAsOfDate,
     } = input;
@@ -116,6 +131,35 @@ export class CashProjector {
     const allExpenseEvents = expenseScheduler.calculateExpenseEvents(
       vendorContracts, startDate, endDate, entity, vendorOverrides
     );
+
+    // Fold ad-hoc events into the same arrays so they aggregate and
+    // get filtered alongside contract-driven events.
+    for (const ev of adhocEvents) {
+      if (ev.date < startDate || ev.date > endDate) continue;
+      if (ev.eventType === 'inflow') {
+        allRevenueEvents.push({
+          date: ev.date,
+          customerId: `adhoc-${ev.id}`,
+          companyName: ev.description,
+          amount: ev.amount,
+          entity: ev.entity,
+          eventType: 'adhoc',
+          paymentPlan: '',
+          invoiceDate: null,
+        });
+      } else {
+        allExpenseEvents.push({
+          date: ev.date,
+          vendorId: `adhoc-${ev.id}`,
+          vendorName: ev.description,
+          amount: ev.amount,
+          entity: ev.entity,
+          category: ev.category ?? 'Adjustment',
+          priority: 5,
+          isPayroll: false,
+        });
+      }
+    }
 
     // Filter out past events — they're already reflected in the bank balance
     const revenueEvents = allRevenueEvents.filter((e) => e.date >= cutoffDate);

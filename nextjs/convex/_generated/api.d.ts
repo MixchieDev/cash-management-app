@@ -8,10 +8,13 @@
  * @module
  */
 
+import type * as adhocEventValidation from "../adhocEventValidation.js";
+import type * as adhocEvents from "../adhocEvents.js";
 import type * as bankBalances from "../bankBalances.js";
 import type * as customers from "../customers.js";
 import type * as entities from "../entities.js";
 import type * as http from "../http.js";
+import type * as overrideValidation from "../overrideValidation.js";
 import type * as overrides from "../overrides.js";
 import type * as projections from "../projections.js";
 import type * as scenarios from "../scenarios.js";
@@ -27,10 +30,13 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  adhocEventValidation: typeof adhocEventValidation;
+  adhocEvents: typeof adhocEvents;
   bankBalances: typeof bankBalances;
   customers: typeof customers;
   entities: typeof entities;
   http: typeof http;
+  overrideValidation: typeof overrideValidation;
   overrides: typeof overrides;
   projections: typeof projections;
   scenarios: typeof scenarios;

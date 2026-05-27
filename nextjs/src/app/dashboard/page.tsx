@@ -7,6 +7,7 @@ import { CashFlowChart } from '@/components/dashboard/cash-flow-chart';
 import { AlertsPanel } from '@/components/dashboard/alerts-panel';
 import { TransactionModal } from '@/components/dashboard/transaction-modal';
 import { ProjectionSearch } from '@/components/dashboard/projection-search';
+import { CustomRangePicker } from '@/components/dashboard/custom-range-picker';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { formatCurrency } from '@/lib/currency';
@@ -55,6 +56,8 @@ export default function DashboardPage() {
     transactionModalDate,
     openTransactionModal,
     closeTransactionModal,
+    customRangeStart,
+    customRangeEnd,
   } = useAppStore();
 
   const { data: session } = useSession();
@@ -62,6 +65,8 @@ export default function DashboardPage() {
   const canViewProjections = userPermissions.includes('view_projections');
 
   const [searchOpen, setSearchOpen] = useState(false);
+  const [customRangeOpen, setCustomRangeOpen] = useState(false);
+  const isCustomRange = Boolean(customRangeStart && customRangeEnd);
 
   // Restricted users always get daily timeframe (3-month preview)
   const effectiveTimeframe = canViewProjections ? timeframe : 'daily';
@@ -223,7 +228,7 @@ export default function DashboardPage() {
                     key={opt.value}
                     onClick={() => setTimeframe(opt.value)}
                     className={`px-3 py-1.5 text-[11px] font-medium rounded-md transition-all ${
-                      timeframe === opt.value
+                      timeframe === opt.value && !isCustomRange
                         ? 'bg-white text-slate-900 shadow-sm'
                         : 'text-slate-500 hover:text-slate-700'
                     }`}
@@ -231,6 +236,19 @@ export default function DashboardPage() {
                     {opt.label}
                   </button>
                 ))}
+                <button
+                  onClick={() => setCustomRangeOpen(true)}
+                  className={`px-3 py-1.5 text-[11px] font-medium rounded-md transition-all ${
+                    isCustomRange
+                      ? 'bg-white text-slate-900 shadow-sm'
+                      : 'text-slate-500 hover:text-slate-700'
+                  }`}
+                  title={isCustomRange
+                    ? `${customRangeStart} → ${customRangeEnd}`
+                    : 'Pick a custom date range'}
+                >
+                  {isCustomRange ? `${customRangeStart} → ${customRangeEnd}` : 'Custom'}
+                </button>
               </div>
             </div>
           )}
@@ -282,7 +300,18 @@ export default function DashboardPage() {
         onOpenChange={setSearchOpen}
         revenueEvents={(projection?.revenueEvents ?? []) as RevenueEvent[]}
         expenseEvents={(projection?.expenseEvents ?? []) as ExpenseEvent[]}
-        windowLabel={TIMEFRAME_OPTIONS.find((t) => t.value === effectiveTimeframe)?.label}
+        windowLabel={
+          isCustomRange
+            ? `${customRangeStart} → ${customRangeEnd}`
+            : TIMEFRAME_OPTIONS.find((t) => t.value === effectiveTimeframe)?.label
+        }
+      />
+
+      {/* Custom Range Picker */}
+      <CustomRangePicker
+        open={customRangeOpen}
+        onOpenChange={setCustomRangeOpen}
+        balanceDate={balanceDate}
       />
     </div>
   );

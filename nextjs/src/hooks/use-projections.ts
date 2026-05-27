@@ -146,7 +146,12 @@ export function useProjection(
   timeframe: Timeframe,
   scenarioType: ScenarioType
 ) {
-  const { selectedAccounts, allAccountsSelected } = useAppStore();
+  const {
+    selectedAccounts,
+    allAccountsSelected,
+    customRangeStart,
+    customRangeEnd,
+  } = useAppStore();
 
   // Read configurable delay days from settings
   const delaySetting = useQuery(api.settings.getByKey, { key: 'realistic_delay_days' });
@@ -169,10 +174,23 @@ export function useProjection(
       .map((e) => e.balanceDate)
       .filter((d): d is string => Boolean(d))
       .map((d) => parseDate(d).getTime());
-    const startDate = balanceDateMs.length > 0
+    const defaultStart = balanceDateMs.length > 0
       ? new Date(Math.max(...balanceDateMs))
       : parseDate(formatDateISO(new Date()));
-    const endDate = addDays(startDate, TIMEFRAME_DAYS[timeframe] ?? 365);
+
+    // Custom range overrides the timeframe preset when both ends are set.
+    // We never start the engine earlier than the latest balance date —
+    // events before that are assumed already reflected in the cash.
+    const hasCustomRange = Boolean(customRangeStart && customRangeEnd);
+    const startDate = hasCustomRange
+      ? (() => {
+          const customStart = parseDate(customRangeStart!);
+          return customStart > defaultStart ? customStart : defaultStart;
+        })()
+      : defaultStart;
+    const endDate = hasCustomRange
+      ? parseDate(customRangeEnd!)
+      : addDays(defaultStart, TIMEFRAME_DAYS[timeframe] ?? 365);
     // Events before today are already reflected in the bank balance
     const today = parseDate(formatDateISO(new Date()));
     const projector = new CashProjector();
@@ -246,7 +264,7 @@ export function useProjection(
       adhocEvents: merged.adhocEvents,
     });
     return serializeProjectionResult(result, 'Consolidated');
-  }, [data, timeframe, scenarioType, allAccountsSelected, selectedAccounts, realisticDelayDays]);
+  }, [data, timeframe, scenarioType, allAccountsSelected, selectedAccounts, realisticDelayDays, customRangeStart, customRangeEnd]);
 
   const balanceDate = useMemo(() => {
     if (!data || data.entities.length === 0) return null;

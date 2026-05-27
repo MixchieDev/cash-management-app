@@ -29,6 +29,13 @@ interface AppState {
   scenarioType: ScenarioType;
   setScenarioType: (st: ScenarioType) => void;
 
+  // Custom date range — when set, overrides the timeframe window.
+  // Stored as ISO YYYY-MM-DD strings. Both must be set to activate.
+  customRangeStart: string | null;
+  customRangeEnd: string | null;
+  setCustomRange: (start: string | null, end: string | null) => void;
+  clearCustomRange: () => void;
+
   // Modal state
   transactionModalOpen: boolean;
   transactionModalDate: string | null;
@@ -78,9 +85,14 @@ export const useAppStore = create<AppState>((set, get) => ({
   selectedEntity: 'Consolidated',
 
   timeframe: 'monthly',
-  setTimeframe: (timeframe) => set({ timeframe }),
+  setTimeframe: (timeframe) => set({ timeframe, customRangeStart: null, customRangeEnd: null }),
   scenarioType: 'realistic',
   setScenarioType: (scenarioType) => set({ scenarioType }),
+
+  customRangeStart: null,
+  customRangeEnd: null,
+  setCustomRange: (start, end) => set({ customRangeStart: start, customRangeEnd: end }),
+  clearCustomRange: () => set({ customRangeStart: null, customRangeEnd: null }),
 
   transactionModalOpen: false,
   transactionModalDate: null,

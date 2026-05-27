@@ -6,6 +6,8 @@ import { KpiCard } from '@/components/dashboard/kpi-card';
 import { CashFlowChart } from '@/components/dashboard/cash-flow-chart';
 import { AlertsPanel } from '@/components/dashboard/alerts-panel';
 import { TransactionModal } from '@/components/dashboard/transaction-modal';
+import { ProjectionSearch } from '@/components/dashboard/projection-search';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { formatCurrency } from '@/lib/currency';
 import type { Timeframe, ProjectionDataPoint, RevenueEvent, ExpenseEvent } from '@/lib/types';
@@ -24,6 +26,7 @@ import {
   Target,
   Loader2,
   Download,
+  Search,
 } from 'lucide-react';
 import { exportProjection } from '@/lib/export-projection';
 
@@ -57,6 +60,8 @@ export default function DashboardPage() {
   const { data: session } = useSession();
   const userPermissions = (session?.user as { permissions?: string[] })?.permissions ?? [];
   const canViewProjections = userPermissions.includes('view_projections');
+
+  const [searchOpen, setSearchOpen] = useState(false);
 
   // Restricted users always get daily timeframe (3-month preview)
   const effectiveTimeframe = canViewProjections ? timeframe : 'daily';
@@ -181,6 +186,14 @@ export default function DashboardPage() {
           {canViewProjections && (
             <div className="flex items-center gap-2">
               <button
+                onClick={() => setSearchOpen(true)}
+                disabled={isLoading || dataPoints.length === 0}
+                className="p-1.5 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                title="Search projection events"
+              >
+                <Search className="h-4 w-4" />
+              </button>
+              <button
                 onClick={() => {
                   if (projection && dataPoints.length > 0) {
                     exportProjection(
@@ -261,6 +274,15 @@ export default function DashboardPage() {
         periodLabel={modalEvents.label}
         revenueEvents={modalEvents.revenue}
         expenseEvents={modalEvents.expenses}
+      />
+
+      {/* Projection Search */}
+      <ProjectionSearch
+        open={searchOpen}
+        onOpenChange={setSearchOpen}
+        revenueEvents={(projection?.revenueEvents ?? []) as RevenueEvent[]}
+        expenseEvents={(projection?.expenseEvents ?? []) as ExpenseEvent[]}
+        windowLabel={TIMEFRAME_OPTIONS.find((t) => t.value === effectiveTimeframe)?.label}
       />
     </div>
   );

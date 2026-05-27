@@ -1,0 +1,44 @@
+name: Convex Deploy
+
+# Push the latest schema + functions in `nextjs/convex/` to the cloud
+# Convex deployment whenever master changes. Without this, Vercel will
+# ship the frontend ahead of Convex and any new function calls 500.
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'nextjs/convex/**'
+      - 'nextjs/package.json'
+      - 'nextjs/package-lock.json'
+      - '.github/workflows/convex-deploy.yml'
+  # Allow manual runs from the Actions tab if you ever need to re-push
+  # without code changes (e.g. after rotating the deploy key).
+  workflow_dispatch:
+
+# Cancel any in-flight deploy when a new commit lands so we don't race.
+concurrency:
+  group: convex-deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: nextjs
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: nextjs/package-lock.json
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Deploy Convex
+        env:
+          CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
+        run: npx convex deploy --yes

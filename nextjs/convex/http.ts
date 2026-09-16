@@ -34,14 +34,28 @@ http.route({
       }
 
       // Map billing app status to cash management status
+      // Billing agent's own statuses are listed too (STOPPED, INACTIVE), so a
+      // sender that sends them raw is still understood.
       const statusMap: Record<string, string> = {
         NOT_STARTED: "Pending",
         ACTIVE: "Active",
         PAUSED: "Inactive",
+        INACTIVE: "Inactive",
         CANCELLED: "Cancelled",
+        STOPPED: "Cancelled",
         COMPLETED: "Inactive",
         OVERDUE: "Active",
       };
+
+      // An unknown status used to become "Active", so a stopped client counted
+      // toward expected cash. Refuse it instead, so the sender sees the problem.
+      const mappedStatus = statusMap[body.status];
+      if (!mappedStatus) {
+        return new Response(
+          JSON.stringify({ error: `Unknown contract status: ${body.status}` }),
+          { status: 400, headers: corsHeaders() }
+        );
+      }
 
       const result = await ctx.runMutation(api.customers.upsertByCustomerNumber, {
         customerNumber: body.customerNumber,
@@ -50,7 +64,7 @@ http.route({
         paymentPlan: mapPaymentPlan(body.paymentPlan),
         contractStart: body.contractStart ?? new Date().toISOString().split("T")[0],
         contractEnd: body.contractEndDate ?? undefined,
-        status: statusMap[body.status] ?? "Active",
+        status: mappedStatus,
         whoAcquired: body.whoAcquired ?? body.partnerName ?? "",
         entity: body.entity,
         invoiceDay: body.billingDayOfMonth ?? undefined,
@@ -101,11 +115,15 @@ http.route({
         );
       }
 
+      // Billing agent's own statuses are listed too (STOPPED, INACTIVE), so a
+      // sender that sends them raw is still understood.
       const statusMap: Record<string, string> = {
         NOT_STARTED: "Pending",
         ACTIVE: "Active",
         PAUSED: "Inactive",
+        INACTIVE: "Inactive",
         CANCELLED: "Cancelled",
+        STOPPED: "Cancelled",
         COMPLETED: "Inactive",
         OVERDUE: "Active",
       };
@@ -115,7 +133,8 @@ http.route({
       let skipped = 0;
 
       for (const c of contracts) {
-        if (!c.customerNumber || !c.companyName || !c.entity) {
+        if (!c.customerNumber || !c.companyName || !c.entity || !statusMap[c.status]) {
+          // Includes an unknown status — skipped and counted, never defaulted to Active.
           skipped++;
           continue;
         }
@@ -127,7 +146,7 @@ http.route({
           paymentPlan: mapPaymentPlan(c.paymentPlan),
           contractStart: c.contractStart ?? new Date().toISOString().split("T")[0],
           contractEnd: c.contractEndDate ?? undefined,
-          status: statusMap[c.status] ?? "Active",
+          status: statusMap[c.status],
           whoAcquired: c.whoAcquired ?? c.partnerName ?? "",
           entity: c.entity,
           invoiceDay: c.billingDayOfMonth ?? undefined,

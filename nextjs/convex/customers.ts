@@ -122,9 +122,25 @@ export const upsertByCustomerNumber = mutation({
       .first();
 
     if (existing) {
-      // Update existing contract with latest data
-      const { customerNumber, externalId, ...updateFields } = args;
-      await ctx.db.patch(existing._id, { ...updateFields, externalId });
+      // Billing agent is the source of truth for commercial terms, so those are
+      // applied on every sync. These four belong to cash management and are only
+      // set when a customer is first created — overwriting them on update reset
+      // reliability to 0.8, the bank account to "Main Account", who acquired to
+      // the partner name, and erased notes, every time a contract was edited:
+      //   whoAcquired      determines which bank account a collection lands in
+      //   reliabilityScore payment behaviour, judged here
+      //   bankAccount      a treasury decision
+      //   notes            cash management's own notes
+      const {
+        customerNumber,
+        externalId,
+        whoAcquired,
+        reliabilityScore,
+        bankAccount,
+        notes,
+        ...billingOwned
+      } = args;
+      await ctx.db.patch(existing._id, { ...billingOwned, externalId });
       return { action: "updated" as const, id: existing._id };
     }
 
